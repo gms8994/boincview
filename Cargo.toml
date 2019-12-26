@@ -1,0 +1,20 @@
+[package]
+name = "boincview"
+version = "0.1.0"
+authors = ["Glen Solsberry <glen@dp.cx>"]
+edition = "2018"
+
+[dependencies]
+encoding = "0.2.33"
+boinc-rpc = { git = "https://github.com/vorot93/boinc-rpc-rs" }
+glib = "0.9.0"
+chrono = "0.4.10"
+rust-ini = "0.13"
+
+[dependencies.gtk]
+version = "0.8.0"
+features = ["v3_16"]
+
+[dependencies.gio]
+version = ""
+features = ["v2_44"]
