@@ -23,6 +23,7 @@ const CONF_FILE_NAME: &str = "conf.ini";
 
 #[repr(i32)]
 enum Columns {
+    Host,
     Name,
     Platform,
     Project,
@@ -130,7 +131,8 @@ fn main() {
 }
 
 fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gtk::ListStore {
-    let col_types: [glib::types::Type; 11] = [
+    let col_types: [glib::types::Type; 12] = [
+        glib::types::Type::String,
         glib::types::Type::String,
         glib::types::Type::String,
         glib::types::Type::String,
@@ -153,7 +155,7 @@ fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gt
 
 fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<String>, rpc::SimpleClient>) {
     store.clear();
-    let col_indices: [u32; 11] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let col_indices: [u32; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
     for (hostname, client) in clients {
         let tasks = client.tasks();
@@ -162,7 +164,8 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
         for (_, d) in tasks.iter().enumerate() {
             &d.time_left();
 
-            let values: [&dyn ToValue; 11] = [
+            let values: [&dyn ToValue; 12] = [
+                &hostname.as_ref(),
                 &d.name,
                 &d.platform,
                 projects[&d.project_url].as_ref().unwrap(),
@@ -182,6 +185,19 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
 }
 
 fn add_columns(treeview: &gtk::TreeView) {
+    {
+        let renderer = gtk::CellRendererText::new();
+        let column = gtk::TreeViewColumn::new();
+        column.pack_start(&renderer, true);
+        column.set_title("Host");
+        column.add_attribute(&renderer, "text", Columns::Host as i32);
+        column.set_sort_column_id(Columns::Host as i32);
+        column.set_min_width(50);
+        column.set_alignment(0.0);
+        column.set_resizable(true);
+        column.set_reorderable(true);
+        treeview.append_column(&column);
+    }
     {
         let renderer = gtk::CellRendererText::new();
         let column = gtk::TreeViewColumn::new();
