@@ -8,12 +8,16 @@ extern crate ini;
 pub mod tasks;
 pub mod client;
 
+use std::str::FromStr;
+use std::collections::HashMap;
 use client::*;
 use gio::prelude::*;
 use gtk::prelude::*;
 use ini::Ini;
 use std::rc::Rc;
 use tasks::*;
+
+const CONF_FILE_NAME: &str = "conf.ini";
 
 #[repr(i32)]
 enum Columns {
@@ -40,22 +44,41 @@ fn main() {
     // the local config for BOINC directly, and then
     // immediately store them within the file, so that
     // we may then use the Ini values as necessary
-    let conf = match Ini::load_from_file("conf.ini") {
+    let conf = match Ini::load_from_file(CONF_FILE_NAME) {
         Ok(config) => config,
         Err(error) => {
             panic!("Missing config file: {:?}", error)
         }
     };
 
-    // Future work
-    // for (sec, prop) in &conf {
-    //     println!("Section: {:?}", sec);
-    //     for (key, value) in prop {
-    //         println!("{:?}:{:?}", key, value);
-    //     }
-    // }
+    let mut clients = HashMap::new();
 
-    application.connect_activate(|app| {
+    // Future work
+    for (host, prop) in conf {
+        let mut client = rpc::SimpleClient::default();
+        for (key, value) in prop {
+            match key.as_ref() {
+                "host" => {
+                    let addr = match std::net::Ipv4Addr::from_str(&value) {
+                        Ok(address) => address,
+                        Err(error) => panic!(error)
+                    };
+
+                    client.addr = std::net::SocketAddr::new(std::net::IpAddr::V4(addr), 31416);
+                },
+                "password" => {
+                    client.password = value.into();
+                },
+                _ => panic!("Unhandled {}", key)
+            }
+        }
+
+        clients.insert(host, client);
+    }
+
+    let model = Rc::new(create_model(&mut clients));
+
+    application.connect_activate(move |app| {
         let window = gtk::ApplicationWindow::new(app);
         window.set_title("BOINCView");
         window.set_default_size(1024, 768);
@@ -83,7 +106,6 @@ fn main() {
         sw.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
         vbox.add(&sw);
 
-        let model = Rc::new(create_model());
         let treeview = gtk::TreeView::new_with_model(&*model);
         treeview.set_vexpand(true);
 
@@ -97,7 +119,7 @@ fn main() {
     application.run(&[]);
 }
 
-fn create_model() -> gtk::ListStore {
+fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gtk::ListStore {
     let col_types: [glib::types::Type; 10] = [
         glib::types::Type::String,
         glib::types::Type::String,
@@ -111,34 +133,32 @@ fn create_model() -> gtk::ListStore {
         glib::types::Type::F64,
     ];
 
-    let mut client = rpc::SimpleClient::default();
-    client.addr = std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)), 31416);
-    client.password = Some("".into());
-
-    let tasks = client.tasks();
-    let projects = client.projects();
-
     let store = gtk::ListStore::new(&col_types);
 
     let col_indices: [u32; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-    for (_, d) in tasks.iter().enumerate() {
-        &d.time_left();
+    for (hostname, client) in clients {
+        let tasks = client.tasks();
+        let projects = client.projects();
 
-        let values: [&dyn ToValue; 10] = [
-            &d.name,
-            &d.platform,
-            projects[&d.project_url].as_ref().unwrap(),
-            &d.final_elapsed_time.unwrap(),
-            &d.exit_status.unwrap(),
-            &d.state(),
-            &d.report_deadline.unwrap(),
-            &d.received_time.unwrap(),
-            &d.estimated_cpu_time_remaining.unwrap(),
-            &d.completed_time.unwrap_or(0.0),
-        ];
+        for (_, d) in tasks.iter().enumerate() {
+            &d.time_left();
 
-        store.set(&store.append(), &col_indices, &values);
+            let values: [&dyn ToValue; 10] = [
+                &d.name,
+                &d.platform,
+                projects[&d.project_url].as_ref().unwrap(),
+                &d.final_elapsed_time.unwrap(),
+                &d.exit_status.unwrap(),
+                &d.state(),
+                &d.report_deadline.unwrap(),
+                &d.received_time.unwrap(),
+                &d.estimated_cpu_time_remaining.unwrap(),
+                &d.completed_time.unwrap_or(0.0),
+            ];
+
+            store.set(&store.append(), &col_indices, &values);
+        }
     }
 
     return store;

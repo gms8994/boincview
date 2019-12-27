@@ -23,6 +23,7 @@ impl ModifiedResult for rpc::models::Result {
         return Some("".to_string());
     }
 
+    // This returns an incorrect state - all values are currently Some(2)
     fn state(&self) -> Option<String> {
         match self.state {
             Some(0) => return Some("Uninitialized".to_string()),
