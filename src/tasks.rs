@@ -1,18 +1,19 @@
 extern crate chrono;
 
 pub trait ModifiedResult {
-    fn progress(&self) -> f64;
+    fn progress(&self) -> String;
     fn time_left(&self) -> Option<String>;
     fn state(&self) -> Option<String>;
 }
 
 impl ModifiedResult for rpc::models::Result {
-    fn progress(&self) -> f64 {
+    fn progress(&self) -> String {
         let current_cpu_time = self.final_cpu_time.unwrap();
         let remaining_cpu_time = self.estimated_cpu_time_remaining.unwrap();
         let expected_total_runtime = current_cpu_time + remaining_cpu_time;
 
-        return (current_cpu_time / expected_total_runtime) * 100.00;
+        let progress = (current_cpu_time / expected_total_runtime) * 100.00;
+        return format!("{0:.2} %", progress);
     }
 
     /**
@@ -20,6 +21,7 @@ impl ModifiedResult for rpc::models::Result {
      */
     fn time_left(&self) -> Option<String> {
         let duration = chrono::Duration::seconds(self.estimated_cpu_time_remaining.unwrap().round() as i64);
+        println!("{:?}", duration);
         return Some("".to_string());
     }
 

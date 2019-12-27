@@ -8,6 +8,8 @@ extern crate ini;
 pub mod tasks;
 pub mod client;
 
+use std::time::Duration;
+use std::thread;
 use std::str::FromStr;
 use std::collections::HashMap;
 use client::*;
@@ -31,6 +33,7 @@ enum Columns {
     ReceivedTime,
     EstimatedTimeRemaining,
     CompletedTime,
+    Progress,
 }
 
 fn main() {
@@ -77,6 +80,13 @@ fn main() {
     }
 
     let model = Rc::new(create_model(&mut clients));
+    // println!("{:?}", model);
+
+    // thread::spawn(|| {
+    //     get_data_for_model(&model, &mut clients);
+
+    //     thread::sleep(Duration::new(5, 0));
+    // });
 
     application.connect_activate(move |app| {
         let window = gtk::ApplicationWindow::new(app);
@@ -120,7 +130,7 @@ fn main() {
 }
 
 fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gtk::ListStore {
-    let col_types: [glib::types::Type; 10] = [
+    let col_types: [glib::types::Type; 11] = [
         glib::types::Type::String,
         glib::types::Type::String,
         glib::types::Type::String,
@@ -131,11 +141,19 @@ fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gt
         glib::types::Type::F64,
         glib::types::Type::F64,
         glib::types::Type::F64,
+        glib::types::Type::String,
     ];
 
     let store = gtk::ListStore::new(&col_types);
 
-    let col_indices: [u32; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    get_data_for_model(&store, clients);
+
+    return store;
+}
+
+fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<String>, rpc::SimpleClient>) {
+    store.clear();
+    let col_indices: [u32; 11] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
     for (hostname, client) in clients {
         let tasks = client.tasks();
@@ -144,7 +162,7 @@ fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gt
         for (_, d) in tasks.iter().enumerate() {
             &d.time_left();
 
-            let values: [&dyn ToValue; 10] = [
+            let values: [&dyn ToValue; 11] = [
                 &d.name,
                 &d.platform,
                 projects[&d.project_url].as_ref().unwrap(),
@@ -155,13 +173,12 @@ fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gt
                 &d.received_time.unwrap(),
                 &d.estimated_cpu_time_remaining.unwrap(),
                 &d.completed_time.unwrap_or(0.0),
+                &d.progress(),
             ];
 
             store.set(&store.append(), &col_indices, &values);
         }
     }
-
-    return store;
 }
 
 fn add_columns(treeview: &gtk::TreeView) {
@@ -185,6 +202,19 @@ fn add_columns(treeview: &gtk::TreeView) {
         column.set_title("Name");
         column.add_attribute(&renderer, "text", Columns::Name as i32);
         column.set_sort_column_id(Columns::Name as i32);
+        column.set_min_width(50);
+        column.set_alignment(0.0);
+        column.set_resizable(true);
+        column.set_reorderable(true);
+        treeview.append_column(&column);
+    }
+    {
+        let renderer = gtk::CellRendererText::new();
+        let column = gtk::TreeViewColumn::new();
+        column.pack_start(&renderer, true);
+        column.set_title("Progress");
+        column.add_attribute(&renderer, "text", Columns::Progress as i32);
+        column.set_sort_column_id(Columns::Progress as i32);
         column.set_min_width(50);
         column.set_alignment(0.0);
         column.set_resizable(true);
