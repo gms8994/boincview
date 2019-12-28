@@ -35,6 +35,7 @@ enum Columns {
     EstimatedTimeRemaining,
     CompletedTime,
     Progress,
+    ProgressString,
 }
 
 fn main() {
@@ -81,7 +82,6 @@ fn main() {
     }
 
     let model = Rc::new(create_model(&mut clients));
-    // println!("{:?}", model);
 
     // thread::spawn(|| {
     //     get_data_for_model(&model, &mut clients);
@@ -131,7 +131,7 @@ fn main() {
 }
 
 fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gtk::ListStore {
-    let col_types: [glib::types::Type; 12] = [
+    let col_types: [glib::types::Type; 13] = [
         glib::types::Type::String,
         glib::types::Type::String,
         glib::types::Type::String,
@@ -139,6 +139,7 @@ fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gt
         glib::types::Type::F64,
         glib::types::Type::I64,
         glib::types::Type::String,
+        glib::types::Type::F64,
         glib::types::Type::F64,
         glib::types::Type::F64,
         glib::types::Type::F64,
@@ -155,7 +156,7 @@ fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gt
 
 fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<String>, rpc::SimpleClient>) {
     store.clear();
-    let col_indices: [u32; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    let col_indices: [u32; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
     for (hostname, client) in clients {
         let tasks = client.tasks();
@@ -164,7 +165,7 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
         for (_, d) in tasks.iter().enumerate() {
             &d.time_left();
 
-            let values: [&dyn ToValue; 12] = [
+            let values: [&dyn ToValue; 13] = [
                 &hostname.as_ref(),
                 &d.name,
                 &d.platform,
@@ -177,6 +178,7 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
                 &d.estimated_cpu_time_remaining.unwrap(),
                 &d.completed_time.unwrap_or(0.0),
                 &d.progress(),
+                &format!("{0:.2} %", d.progress()),
             ];
 
             store.set(&store.append(), &col_indices, &values);
@@ -228,8 +230,14 @@ fn add_columns(treeview: &gtk::TreeView) {
         let renderer = gtk::CellRendererText::new();
         let column = gtk::TreeViewColumn::new();
         column.pack_start(&renderer, true);
+        treeview.append_column(&column);
+    }
+    {
+        let renderer = gtk::CellRendererText::new();
+        let column = gtk::TreeViewColumn::new();
+        column.pack_start(&renderer, true);
         column.set_title("Progress");
-        column.add_attribute(&renderer, "text", Columns::Progress as i32);
+        column.add_attribute(&renderer, "text", Columns::ProgressString as i32);
         column.set_sort_column_id(Columns::Progress as i32);
         column.set_min_width(50);
         column.set_alignment(0.0);
