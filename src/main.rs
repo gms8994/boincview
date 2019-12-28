@@ -8,6 +8,8 @@ extern crate ini;
 pub mod tasks;
 pub mod client;
 
+use std::sync::Mutex;
+use std::sync::Arc;
 use std::time::Duration;
 use std::thread;
 use std::str::FromStr;
@@ -81,13 +83,7 @@ fn main() {
         clients.insert(host, client);
     }
 
-    let model = Rc::new(create_model(&mut clients));
-
-    // thread::spawn(|| {
-    //     get_data_for_model(&model, &mut clients);
-
-    //     thread::sleep(Duration::new(5, 0));
-    // });
+    let model = Rc::new(create_model(clients));
 
     application.connect_activate(move |app| {
         let window = gtk::ApplicationWindow::new(app);
@@ -130,7 +126,7 @@ fn main() {
     application.run(&[]);
 }
 
-fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gtk::ListStore {
+fn create_model(clients : HashMap<Option<String>, rpc::SimpleClient>) -> gtk::ListStore {
     let col_types: [glib::types::Type; 13] = [
         glib::types::Type::String,
         glib::types::Type::String,
@@ -147,29 +143,58 @@ fn create_model(clients : &mut HashMap<Option<String>, rpc::SimpleClient>) -> gt
         glib::types::Type::String,
     ];
 
-    let store = gtk::ListStore::new(&col_types);
-
-    get_data_for_model(&store, clients);
+    let store = get_data_for_model(gtk::ListStore::new(&col_types), clients);
 
     return store;
 }
 
-fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<String>, rpc::SimpleClient>) {
+fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, rpc::SimpleClient>) -> gtk::ListStore {
     store.clear();
+
+    let task_list : Arc<Mutex<HashMap<String, Vec<rpc::models::Result>>>> = Arc::new(Mutex::new(HashMap::new()));
+    let project_list : Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
+
+    for (hostname, mut client) in clients {
+        let task_list = task_list.clone();
+        let project_list = project_list.clone();
+
+        thread::spawn(move || {
+            let mut guarded_task = task_list.lock().unwrap();
+            let mut guarded_project = project_list.lock().unwrap();
+
+            let hostname = hostname.as_ref();
+
+            println!("Connecting to {:?} to gather data", hostname);
+            let tasks = client.tasks();
+            let projects = client.projects();
+            println!("Done connecting to {:?} to gather data", hostname);
+
+            guarded_task.insert(hostname.unwrap().to_string(), tasks);
+
+            for project in projects {
+                guarded_project.insert(project.url.unwrap(), project.name.unwrap());
+            }
+
+        });
+    }
+
     let col_indices: [u32; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-    for (hostname, client) in clients {
-        let tasks = client.tasks();
-        let projects = client.projects();
+    let projects = project_list.lock().unwrap();
 
+    println!("{:?}", task_list.lock().unwrap());
+
+    // Seems like this isn't actually looping?
+    for (hostname, tasks) in &*task_list.lock().unwrap() {
         for (_, d) in tasks.iter().enumerate() {
             &d.time_left();
 
             let values: [&dyn ToValue; 13] = [
-                &hostname.as_ref(),
+                &hostname,
                 &d.name,
                 &d.platform,
-                projects[&d.project_url].as_ref().unwrap(),
+                &d.project_url,
+                // projects[&d.project_url].as_ref().unwrap(),
                 &d.final_elapsed_time.unwrap(),
                 &d.exit_status.unwrap(),
                 &d.state(),
@@ -184,6 +209,8 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
             store.set(&store.append(), &col_indices, &values);
         }
     }
+
+    return store;
 }
 
 fn add_columns(treeview: &gtk::TreeView) {
