@@ -154,11 +154,13 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
     let task_list : Arc<Mutex<HashMap<String, Vec<rpc::models::Result>>>> = Arc::new(Mutex::new(HashMap::new()));
     let project_list : Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
 
+    let mut handles = vec![];
+
     for (hostname, mut client) in clients {
         let task_list = task_list.clone();
         let project_list = project_list.clone();
 
-        thread::spawn(move || {
+        let th = thread::spawn(move || {
             let mut guarded_task = task_list.lock().unwrap();
             let mut guarded_project = project_list.lock().unwrap();
 
@@ -176,6 +178,12 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
             }
 
         });
+
+        handles.push(th);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
     }
 
     let col_indices: [u32; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
