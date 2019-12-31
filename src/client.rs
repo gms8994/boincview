@@ -1,9 +1,9 @@
 use rpc::Client;
-use std::option::Option;
 use rpc::errors::*;
-use std::sync::Mutex;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::option::Option;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 
 pub trait SimpleClient {

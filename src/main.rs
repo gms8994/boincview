@@ -1,24 +1,20 @@
-extern crate encoding;
 extern crate boinc_rpc as rpc;
-extern crate gtk;
+extern crate encoding;
 extern crate gio;
 extern crate glib;
+extern crate gtk;
 extern crate ini;
 
-pub mod tasks;
 pub mod client;
+pub mod tasks;
 
-use std::sync::Mutex;
-use std::sync::Arc;
-use std::time::Duration;
-use std::thread;
-use std::str::FromStr;
-use std::collections::HashMap;
 use client::*;
 use gio::prelude::*;
 use gtk::prelude::*;
 use ini::Ini;
+use std::collections::HashMap;
 use std::rc::Rc;
+use std::str::FromStr;
 use tasks::*;
 
 const CONF_FILE_NAME: &str = "conf.ini";
