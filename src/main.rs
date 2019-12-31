@@ -166,15 +166,12 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
 
             let hostname = hostname.as_ref();
 
-            println!("Connecting to {:?} to gather data", hostname);
-            println!("Done connecting to {:?} to gather data", hostname);
-
             // If the client returned some tasks, add them to the guarded task
             match client.tasks() {
                 Ok(tasks) => {
                     guarded_task.insert(hostname.unwrap().to_string(), tasks);
                 },
-                Err(error) => {
+                Err(_error) => {
                     return;
                 }
             }
@@ -187,7 +184,7 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
                         guarded_project.insert(project.url.unwrap(), project.name.unwrap());
                     }
                 },
-                Err(error) => {
+                Err(_error) => {
                     return;
                 }
             }
@@ -204,19 +201,14 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
 
     let projects = project_list.lock().unwrap();
 
-    println!("{:?}", task_list.lock().unwrap());
-
     // Seems like this isn't actually looping?
     for (hostname, tasks) in &*task_list.lock().unwrap() {
         for (_, d) in tasks.iter().enumerate() {
-            &d.time_left();
-
             let values: [&dyn ToValue; 13] = [
                 &hostname,
                 &d.name,
                 &d.platform,
-                &d.project_url,
-                // projects[&d.project_url].as_ref().unwrap(),
+                &projects[d.project_url.as_ref().unwrap()],
                 &d.final_elapsed_time.unwrap(),
                 &d.exit_status.unwrap(),
                 &d.state(),
