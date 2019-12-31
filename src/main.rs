@@ -151,7 +151,10 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
     let mut project_list : HashMap<String, String> = HashMap::new();
 
     for (hostname, mut client) in clients {
-        client.populate(&hostname, &mut task_list, &mut project_list);
+        let (client_tasks, client_projects) = client.populate(&hostname);
+
+        task_list.extend(client_tasks);
+        project_list.extend(client_projects);
     }
 
     let col_indices: [u32; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];

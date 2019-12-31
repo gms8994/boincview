@@ -11,10 +11,8 @@ pub trait SimpleClient {
     fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error>;
     fn populate(
         &mut self,
-        hostname : &Option<String>,
-        task_list : &mut HashMap<String, Vec<rpc::models::Result>>,
-        project_list : &mut HashMap<String, String>
-    );
+        hostname : &Option<String>
+    ) -> (HashMap<String, Vec<rpc::models::Result>>, HashMap<String, String>);
 }
 
 impl SimpleClient for rpc::SimpleClient {
@@ -29,9 +27,10 @@ impl SimpleClient for rpc::SimpleClient {
     fn populate(
         &mut self,
         hostname : &Option<String>,
-        task_list : &mut HashMap<String, Vec<rpc::models::Result>>,
-        project_list : &mut HashMap<String, String>
-    ) {
+    ) -> (HashMap<String, Vec<rpc::models::Result>>, HashMap<String, String>) {
+        let mut task_list : HashMap<String, Vec<rpc::models::Result>> = HashMap::new();
+        let mut project_list : HashMap<String, String> = HashMap::new();
+
         let hostname = hostname.as_ref();
 
         // If the client returned some tasks, add them to the guarded task
@@ -40,7 +39,7 @@ impl SimpleClient for rpc::SimpleClient {
                 task_list.insert(hostname.unwrap().to_string(), tasks);
             },
             Err(_error) => {
-                return;
+                return (task_list, project_list);
             }
         }
 
@@ -53,9 +52,11 @@ impl SimpleClient for rpc::SimpleClient {
                 }
             },
             Err(_error) => {
-                return;
+                return (task_list, project_list);
             }
         }
+
+        return (task_list, project_list);
     }
 
 }
