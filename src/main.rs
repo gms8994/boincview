@@ -167,16 +167,30 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
             let hostname = hostname.as_ref();
 
             println!("Connecting to {:?} to gather data", hostname);
-            let tasks = client.tasks();
-            let projects = client.projects();
             println!("Done connecting to {:?} to gather data", hostname);
 
-            guarded_task.insert(hostname.unwrap().to_string(), tasks);
-
-            for project in projects {
-                guarded_project.insert(project.url.unwrap(), project.name.unwrap());
+            // If the client returned some tasks, add them to the guarded task
+            match client.tasks() {
+                Ok(tasks) => {
+                    guarded_task.insert(hostname.unwrap().to_string(), tasks);
+                },
+                Err(error) => {
+                    return;
+                }
             }
 
+            // If the client returned some projects, loop over them adding to
+            // the guarded project
+            match client.projects() {
+                Ok(projects) => {
+                    for project in projects {
+                        guarded_project.insert(project.url.unwrap(), project.name.unwrap());
+                    }
+                },
+                Err(error) => {
+                    return;
+                }
+            }
         });
 
         handles.push(th);

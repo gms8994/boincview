@@ -1,31 +1,18 @@
 use rpc::Client;
 use std::option::Option;
+use rpc::errors::*;
 
 pub trait SimpleClient {
-    fn tasks(&mut self) -> Vec<rpc::models::Result>;
-    fn projects(&mut self) -> Vec<rpc::models::ProjectInfo>;
+    fn tasks(&mut self) -> Result<Vec<rpc::models::Result>, Error>;
+    fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error>;
 }
 
 impl SimpleClient for rpc::SimpleClient {
-    fn tasks(&mut self) -> Vec<rpc::models::Result> {
-        let tasks = match self.get_results(false) {
-            Ok(tasks) => tasks,
-            Err(error) => {
-                panic!("There was a problem connecting to BOINC: {:?}", error)
-            }
-        };
-
-        return tasks;
+    fn tasks(&mut self) -> Result<Vec<rpc::models::Result>, Error> {
+        return self.get_results(false);
     }
 
-    fn projects(&mut self) -> Vec<rpc::models::ProjectInfo> {
-        let projects = self.get_projects();
-
-        return match projects {
-             Ok(list) => list,
-             Err(error) => {
-                 panic!("There was a problem connecting to BOINC: {:?}", error)
-             }
-        };
+    fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error> {
+        return self.get_projects();
     }
 }
