@@ -155,30 +155,7 @@ fn get_data_for_model(store : gtk::ListStore, clients : HashMap<Option<String>, 
     let mut project_list : HashMap<String, String> = HashMap::new();
 
     for (hostname, mut client) in clients {
-        let hostname = hostname.as_ref();
-
-        // If the client returned some tasks, add them to the guarded task
-        match client.tasks() {
-            Ok(tasks) => {
-                task_list.insert(hostname.unwrap().to_string(), tasks);
-            },
-            Err(_error) => {
-                continue;
-            }
-        }
-
-        // If the client returned some projects, loop over them adding to
-        // the guarded project
-        match client.projects() {
-            Ok(projects) => {
-                for project in projects {
-                    project_list.insert(project.url.unwrap(), project.name.unwrap());
-                }
-            },
-            Err(_error) => {
-                continue;
-            }
-        }
+        client.populate(&hostname, &mut task_list, &mut project_list);
     }
 
     let col_indices: [u32; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
