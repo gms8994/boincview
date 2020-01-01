@@ -13,16 +13,21 @@ pub fn add_columns(treeview: &gtk::TreeView) {
     append_column("Progress %", &mut columns, &treeview, None);
     append_column("Elapsed Time", &mut columns, &treeview, None);
     append_column("Time Left", &mut columns, &treeview, None);
-    append_column("Exit Status", &mut columns, &treeview, None);
     append_column("State", &mut columns, &treeview, None);
     append_column("Report Deadline", &mut columns, &treeview, None);
     append_column("Received Time", &mut columns, &treeview, None);
     append_column("Completed Time", &mut columns, &treeview, None);
     append_column("Platform", &mut columns, &treeview, None);
+    // There are four additional columns here with float values
+    // to allow the sorting columns below
 
+    // Reminder, the below are zero-indexed
     // Clicking the "Progress %" column the order should be defined by the float value
-    // reminder that both of these are zero indexed
-    columns[3].set_sort_column_id(12);
+    columns[3].set_sort_column_id(11);
+    // Clicking the "Elapsed Time" column the order should be defined by the float value
+    columns[4].set_sort_column_id(12);
+    // Clicking the "Time Left" column the order should be defined by the float value
+    columns[5].set_sort_column_id(13);
 }
 
 fn append_column(

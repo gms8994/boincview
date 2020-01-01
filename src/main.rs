@@ -35,7 +35,10 @@ fn main() {
 }
 
 fn create_model() -> gtk::ListStore {
-    let col_types: [glib::types::Type; 13] = [
+    let col_types: [glib::types::Type; 14] = [
+        glib::types::Type::String,
+        glib::types::Type::String,
+        glib::types::Type::String,
         glib::types::Type::String,
         glib::types::Type::String,
         glib::types::Type::String,
@@ -46,8 +49,6 @@ fn create_model() -> gtk::ListStore {
         glib::types::Type::String,
         glib::types::Type::F64,
         glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::String,
         glib::types::Type::F64,
     ];
 
@@ -79,8 +80,8 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
                 client_tasks = result.tasks;
                 client_projects = result.projects;
             },
-            Err(_error) => {
-                println!("I want to remove {:?} as a host from the list as it's down", hostname);
+            Err(error) => {
+                println!("Host {:?} responded with {:?}", hostname, error);
                 let start_time = get_now();
 
                 downed_clients.insert(Some(hostname.as_ref().unwrap().to_string()), start_time);
@@ -94,25 +95,26 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
         project_list.extend(client_projects);
     }
 
-    let col_indices: [u32; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
     // Seems like this isn't actually looping?
     for (hostname, tasks) in task_list {
         for (_, d) in tasks.iter().enumerate() {
-            let values: [&dyn ToValue; 13] = [
+            let values: [&dyn ToValue; 14] = [
                 &hostname,
                 &project_list[d.project_url.as_ref().unwrap()],
                 &d.name,
                 &format!("{0:.2} %", d.progress()),
-                &d.final_elapsed_time.unwrap(),
-                &d.estimated_cpu_time_remaining.unwrap(),
-                &d.exit_status.unwrap(),
+                &d.elapsed_as_string(),
+                &d.remaining_as_string(),
                 &d.state(),
                 &d.report_deadline.unwrap(),
                 &d.received_time.unwrap(),
                 &d.completed_time.unwrap_or(0.0),
                 &d.platform,
                 &d.progress(),
+                &d.elapsed(),
+                &d.remaining(),
             ];
 
             store.set(&store.append(), &col_indices, &values);
@@ -197,6 +199,8 @@ fn build_ui(application: &gtk::Application) {
 
     get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
 
+    // Need another timeout_add that simply iterates the model and increments
+    // or decrements values as appropriate
     Some(gtk::timeout_add(
         30000,
         move || {
