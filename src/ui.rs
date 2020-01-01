@@ -1,5 +1,4 @@
 extern crate gtk;
-extern crate gio;
 extern crate glib;
 
 use gio::prelude::*;

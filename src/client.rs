@@ -2,32 +2,30 @@ use rpc::Client;
 use rpc::errors::*;
 use std::collections::HashMap;
 use std::option::Option;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::thread;
+
+pub struct PopulatedResults {
+    pub tasks: HashMap<String, Vec<rpc::models::Result>>,
+    pub projects: HashMap<String, String>,
+}
 
 pub trait SimpleClient {
     fn tasks(&mut self) -> Result<Vec<rpc::models::Result>, Error>;
     fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error>;
-    fn populate(
-        &mut self,
-        hostname : &Option<String>
-    ) -> (HashMap<String, Vec<rpc::models::Result>>, HashMap<String, String>);
+    fn populate(&mut self, hostname : &Option<String>) -> Result<PopulatedResults, Error>;
 }
 
 impl SimpleClient for rpc::SimpleClient {
     fn tasks(&mut self) -> Result<Vec<rpc::models::Result>, Error> {
-        return self.get_results(false);
+        let results = self.get_results(false);
+        println!("{:?}", results);
+        return results;
     }
 
     fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error> {
         return self.get_projects();
     }
 
-    fn populate(
-        &mut self,
-        hostname : &Option<String>,
-    ) -> (HashMap<String, Vec<rpc::models::Result>>, HashMap<String, String>) {
+    fn populate(&mut self, hostname : &Option<String>) -> Result<PopulatedResults, Error> {
         let mut task_list : HashMap<String, Vec<rpc::models::Result>> = HashMap::new();
         let mut project_list : HashMap<String, String> = HashMap::new();
 
@@ -38,8 +36,8 @@ impl SimpleClient for rpc::SimpleClient {
             Ok(tasks) => {
                 task_list.insert(hostname.unwrap().to_string(), tasks);
             },
-            Err(_error) => {
-                return (task_list, project_list);
+            Err(error) => {
+                return Err(error);
             }
         }
 
@@ -51,12 +49,15 @@ impl SimpleClient for rpc::SimpleClient {
                     project_list.insert(project.url.unwrap(), project.name.unwrap());
                 }
             },
-            Err(_error) => {
-                return (task_list, project_list);
+            Err(error) => {
+                return Err(error);
             }
         }
 
-        return (task_list, project_list);
+        Ok(PopulatedResults {
+            tasks: task_list,
+            projects: project_list
+        })
     }
 
 }
