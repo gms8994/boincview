@@ -17,6 +17,7 @@ use gtk::prelude::*;
 use ini::Ini;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::time::SystemTime;
 use tasks::*;
 
 const CONF_FILE_NAME: &str = "conf.ini";
@@ -53,13 +54,19 @@ fn create_model() -> gtk::ListStore {
     return gtk::ListStore::new(&col_types);
 }
 
-fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<String>, rpc::SimpleClient>) {
+fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<String>, rpc::SimpleClient>, downed_clients : &mut HashMap<Option<String>, u64>) {
     store.clear();
 
     let mut task_list : HashMap<String, Vec<rpc::models::Result>> = HashMap::new();
     let mut project_list : HashMap<String, String> = HashMap::new();
 
     for (hostname, client) in clients {
+        println!("Going to update host {:?}", hostname);
+        if downed_clients.contains_key(hostname) {
+            println!("No need to update host {:?} - it's down", hostname);
+            continue;
+        }
+
         let (client_tasks, client_projects);
         let population_result = client.populate(&hostname);
         match population_result {
@@ -69,10 +76,14 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
             },
             Err(_error) => {
                 println!("I want to remove {:?} as a host from the list as it's down", hostname);
+                let start_time = get_now();
 
+                downed_clients.insert(Some(hostname.as_ref().unwrap().to_string()), start_time);
                 continue;
             }
         }
+
+        println!("Host {:?} successfully updated", hostname);
 
         task_list.extend(client_tasks);
         project_list.extend(client_projects);
@@ -118,6 +129,7 @@ fn build_ui(application: &gtk::Application) {
     };
 
     let mut clients = HashMap::new();
+    let mut downed_clients = HashMap::new();
 
     // Future work
     for (host, prop) in conf {
@@ -178,13 +190,13 @@ fn build_ui(application: &gtk::Application) {
 
     ui::add_columns(&treeview);
 
-    get_data_for_model(&model.borrow(), &mut clients);
+    get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
 
     Some(gtk::timeout_add(
         30000,
         move || {
             println!("Updating models");
-            get_data_for_model(&model.borrow(), &mut clients);
+            get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
             println!("Done updating models");
 
             glib::Continue(true)
@@ -196,4 +208,11 @@ fn build_ui(application: &gtk::Application) {
         // filter_entry.hide();
         window.present();
     });
+}
+
+fn get_now() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("couldn't get start time")
+        .as_secs()
 }

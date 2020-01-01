@@ -17,7 +17,6 @@ pub trait SimpleClient {
 impl SimpleClient for rpc::SimpleClient {
     fn tasks(&mut self) -> Result<Vec<rpc::models::Result>, Error> {
         let results = self.get_results(false);
-        println!("{:?}", results);
         return results;
     }
 
