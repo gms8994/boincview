@@ -41,14 +41,14 @@ fn create_model() -> gtk::ListStore {
         glib::types::Type::String,
         glib::types::Type::String,
         glib::types::Type::F64,
-        glib::types::Type::I64,
-        glib::types::Type::String,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
         glib::types::Type::F64,
         glib::types::Type::F64,
         glib::types::Type::String,
+        glib::types::Type::F64,
+        glib::types::Type::F64,
+        glib::types::Type::F64,
+        glib::types::Type::String,
+        glib::types::Type::F64,
     ];
 
     return gtk::ListStore::new(&col_types);
@@ -63,8 +63,13 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
     for (hostname, client) in clients {
         println!("Going to update host {:?}", hostname);
         if downed_clients.contains_key(hostname) {
-            println!("No need to update host {:?} - it's down", hostname);
-            continue;
+            if get_now() - downed_clients.get(hostname).unwrap() <= 90 {
+                println!("No need to update host {:?} - it's down", hostname);
+                continue;
+            }
+
+            println!("Host {:?} has been down more than 90s - rechecking for up", hostname);
+            downed_clients.remove(hostname);
         }
 
         let (client_tasks, client_projects);
@@ -96,18 +101,18 @@ fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<Str
         for (_, d) in tasks.iter().enumerate() {
             let values: [&dyn ToValue; 13] = [
                 &hostname,
-                &d.name,
-                &d.platform,
                 &project_list[d.project_url.as_ref().unwrap()],
+                &d.name,
+                &format!("{0:.2} %", d.progress()),
                 &d.final_elapsed_time.unwrap(),
+                &d.estimated_cpu_time_remaining.unwrap(),
                 &d.exit_status.unwrap(),
                 &d.state(),
                 &d.report_deadline.unwrap(),
                 &d.received_time.unwrap(),
-                &d.estimated_cpu_time_remaining.unwrap(),
                 &d.completed_time.unwrap_or(0.0),
+                &d.platform,
                 &d.progress(),
-                &format!("{0:.2} %", d.progress()),
             ];
 
             store.set(&store.append(), &col_indices, &values);
