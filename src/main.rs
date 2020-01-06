@@ -8,8 +8,8 @@ extern crate ini;
 pub mod client;
 pub mod tasks;
 pub mod ui;
+pub mod data_fetcher;
 
-use client::*;
 use std::rc::Rc;
 use std::cell::RefCell;
 use gio::prelude::*;
@@ -17,8 +17,6 @@ use gtk::prelude::*;
 use ini::Ini;
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::time::SystemTime;
-use tasks::*;
 
 const CONF_FILE_NAME: &str = "conf.ini";
 const APPLICATION_NAME: &str = "com.github.gtk-rs.examples.basic";
@@ -32,94 +30,6 @@ fn main() {
     });
 
     application.run(&[]);
-}
-
-fn create_model() -> gtk::ListStore {
-    let col_types: [glib::types::Type; 14] = [
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::String,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-    ];
-
-    return gtk::ListStore::new(&col_types);
-}
-
-fn get_data_for_model(store : &gtk::ListStore, clients : &mut HashMap<Option<String>, rpc::SimpleClient>, downed_clients : &mut HashMap<Option<String>, u64>) {
-    store.clear();
-
-    let mut task_list : HashMap<String, Vec<rpc::models::Result>> = HashMap::new();
-    let mut project_list : HashMap<String, String> = HashMap::new();
-
-    for (hostname, client) in clients {
-        println!("Going to update host {:?}", hostname);
-        if downed_clients.contains_key(hostname) {
-            if get_now() - downed_clients.get(hostname).unwrap() <= 90 {
-                println!("No need to update host {:?} - it's down", hostname);
-                continue;
-            }
-
-            println!("Host {:?} has been down more than 90s - rechecking for up", hostname);
-            downed_clients.remove(hostname);
-        }
-
-        let (client_tasks, client_projects);
-        let population_result = client.populate(&hostname);
-        match population_result {
-            Ok(result) => {
-                client_tasks = result.tasks;
-                client_projects = result.projects;
-            },
-            Err(error) => {
-                println!("Host {:?} responded with {:?}", hostname, error);
-                let start_time = get_now();
-
-                downed_clients.insert(Some(hostname.as_ref().unwrap().to_string()), start_time);
-                continue;
-            }
-        }
-
-        println!("Host {:?} successfully updated", hostname);
-
-        task_list.extend(client_tasks);
-        project_list.extend(client_projects);
-    }
-
-    let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-
-    // Seems like this isn't actually looping?
-    for (hostname, tasks) in task_list {
-        for (_, d) in tasks.iter().enumerate() {
-            let values: [&dyn ToValue; 14] = [
-                &hostname,
-                &project_list[d.project_url.as_ref().unwrap()],
-                &d.name,
-                &format!("{0:.2} %", d.progress()),
-                &d.elapsed_as_string(),
-                &d.remaining_as_string(),
-                &d.state(),
-                &d.report_deadline.unwrap(),
-                &d.received_time.unwrap(),
-                &d.completed_time.unwrap_or(0.0),
-                &d.platform,
-                &d.progress(),
-                &d.elapsed(),
-                &d.remaining(),
-            ];
-
-            store.set(&store.append(), &col_indices, &values);
-        }
-    }
 }
 
 fn build_ui(application: &gtk::Application) {
@@ -161,7 +71,7 @@ fn build_ui(application: &gtk::Application) {
         clients.insert(host, client);
     }
 
-    let model = Rc::new(RefCell::new(create_model()));
+    let model = Rc::new(RefCell::new(data_fetcher::create_model()));
 
     let window = gtk::ApplicationWindow::new(application);
     window.set_title("BOINCView");
@@ -169,24 +79,33 @@ fn build_ui(application: &gtk::Application) {
 
     let paned_window = gtk::Paned::new(gtk::Orientation::Horizontal);
 
-    // Set all of the items on the host frame
+    // Set up both of the panes in the window
     let (paned_window, host) = ui::Window::new(paned_window, true, 200);
+    let (paned_window, data) = ui::Window::new(paned_window, false, 568);
+
+    // Set all of the items on the host frame
     // let host_treeview = gtk::TreeView::new_with_model(&*model.borrow());
     // host_treeview.set_vexpand(true);
 
     // host_scrollable_window.add(&host_treeview);
     // End setting data on the data frame
 
-    // Set all of the items on the data frame
-    let (paned_window, data) = ui::Window::new(paned_window, false, 568);
+    // Set up the data-feed on the data pane
     let data_treeview = gtk::TreeView::new_with_model(&*model.borrow());
     data_treeview.set_vexpand(true);
     data.scrolled_window.add(&data_treeview);
 
     ui::add_data_columns(&data_treeview);
 
-    get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
-    // End setting data on the data frame
+    data_fetcher::get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
+    Some(gtk::timeout_add(
+        30000,
+        move || {
+            data_fetcher::get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
+
+            glib::Continue(true)
+        }
+    ));
 
     // Need another timeout_add that simply iterates the model and increments
     // or decrements values as appropriate
@@ -201,14 +120,6 @@ fn build_ui(application: &gtk::Application) {
     //     }
     // ));
 
-    Some(gtk::timeout_add(
-        30000,
-        move || {
-            get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
-
-            glib::Continue(true)
-        }
-    ));
 
     window.add(&paned_window);
 
@@ -216,11 +127,4 @@ fn build_ui(application: &gtk::Application) {
         window.show_all();
         window.present();
     });
-}
-
-fn get_now() -> u64 {
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .expect("couldn't get start time")
-        .as_secs()
 }

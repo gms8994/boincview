@@ -1,7 +1,6 @@
 extern crate gtk;
 extern crate glib;
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
 pub fn add_data_columns(treeview: &gtk::TreeView) {
