@@ -86,19 +86,35 @@ impl LocalDuration for Duration {
     fn calculate(&self, total : &mut i64, seconds : &mut i64, format : &String, contains : char, appender : Option<String>) -> String {
         let mut result = String::new();
 
-        if format.contains(contains) && total >= seconds {
-            let unit;
-            if seconds == &mut 0 {
-                unit = *total;
-            } else {
-                unit = ((*total / *seconds) as f64).round() as i64;
-            }
-            *total -= unit * *seconds;
+        if format.contains(contains) {
+            if total >= seconds {
+                let unit;
+                if seconds == &mut 0 {
+                    unit = *total;
+                } else {
+                    unit = ((*total / *seconds) as f64).round() as i64;
+                }
+                *total -= unit * *seconds;
 
-            result.push_str(&format!("{:02}", unit));
-            if let Some(appender) = appender {
-                result.push_str(&appender);
+                result.push_str(&format!("{:02}", unit));
+                if let Some(appender) = appender {
+                    result.push_str(&appender);
+                }
+
+                return result;
             }
+
+            let mut formatted = format!("00");
+            if let Some(appender) = appender {
+                formatted = format!("00{}", appender);
+            }
+
+            match contains {
+                'h' => result.push_str(&formatted),
+                'm' => result.push_str(&formatted),
+                's' => result.push_str(&formatted),
+                _ => { }
+            };
         }
 
         return result;
