@@ -168,39 +168,64 @@ fn build_ui(application: &gtk::Application) {
     window.set_default_size(1024, 768);
 
     let paned_window = gtk::Paned::new(gtk::Orientation::Horizontal);
+
+    // Set all of the items on the host frame
     let host_frame = gtk::Frame::new(None);
-    let data_frame = gtk::Frame::new(None);
-
     gtk::FrameExt::set_shadow_type(&host_frame, gtk::ShadowType::In);
-    gtk::FrameExt::set_shadow_type(&data_frame, gtk::ShadowType::In);
-
     gtk::Paned::pack1(&paned_window, &host_frame, true, true);
     gtk::WidgetExt::set_size_request(&host_frame, 200, -1);
 
+    let host_frame_box = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    host_frame.add(&host_frame_box);
+
+    let host_scrollable_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+    host_scrollable_window.set_shadow_type(gtk::ShadowType::EtchedIn);
+    host_scrollable_window.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+    host_frame_box.add(&host_scrollable_window);
+
+    // let host_treeview = gtk::TreeView::new_with_model(&*model.borrow());
+    // host_treeview.set_vexpand(true);
+
+    // host_scrollable_window.add(&host_treeview);
+    // End setting data on the data frame
+
+    // Set all of the items on the data frame
+    let data_frame = gtk::Frame::new(None);
+    gtk::FrameExt::set_shadow_type(&data_frame, gtk::ShadowType::In);
     gtk::Paned::pack2(&paned_window, &data_frame, true, true);
     gtk::WidgetExt::set_size_request(&data_frame, 568, -1);
 
-    window.add(&paned_window);
+    let data_frame_box = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    data_frame.add(&data_frame_box);
 
-    let vbox = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    data_frame.add(&vbox);
+    let data_scrollable_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+    data_scrollable_window.set_shadow_type(gtk::ShadowType::EtchedIn);
+    data_scrollable_window.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+    data_frame_box.add(&data_scrollable_window);
 
-    let scrolled_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-    scrolled_window.set_shadow_type(gtk::ShadowType::EtchedIn);
-    scrolled_window.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
-    vbox.add(&scrolled_window);
+    let data_treeview = gtk::TreeView::new_with_model(&*model.borrow());
+    data_treeview.set_vexpand(true);
 
-    let treeview = gtk::TreeView::new_with_model(&*model.borrow());
-    treeview.set_vexpand(true);
+    data_scrollable_window.add(&data_treeview);
 
-    scrolled_window.add(&treeview);
-
-    ui::add_columns(&treeview);
+    ui::add_data_columns(&data_treeview);
 
     get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
+    // End setting data on the data frame
 
     // Need another timeout_add that simply iterates the model and increments
     // or decrements values as appropriate
+    // Some(gtk::timeout_add(
+    //     30000,
+    //     move || {
+    //         println!("Updating models");
+    //         get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
+    //         println!("Done updating models");
+
+    //         glib::Continue(true)
+    //     }
+    // ));
+
     Some(gtk::timeout_add(
         30000,
         move || {
@@ -212,6 +237,7 @@ fn build_ui(application: &gtk::Application) {
         }
     ));
 
+    window.add(&paned_window);
     application.connect_activate(move |_| {
         window.show_all();
         // filter_entry.hide();

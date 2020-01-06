@@ -4,7 +4,7 @@ extern crate glib;
 use gio::prelude::*;
 use gtk::prelude::*;
 
-pub fn add_columns(treeview: &gtk::TreeView) {
+pub fn add_data_columns(treeview: &gtk::TreeView) {
     let mut columns: Vec<gtk::TreeViewColumn> = Vec::new();
 
     append_column("Host", &mut columns, &treeview, None);
