@@ -17,6 +17,7 @@ pub struct Endpoint {
     name: Option<String>,
     host: Option<std::net::SocketAddr>,
     password: Option<String>,
+    pub last_checked: Option<u64>,
 }
 
 pub fn get_endpoints() -> Endpoints {
@@ -31,6 +32,7 @@ pub fn get_endpoints() -> Endpoints {
             name: host.clone(),
             host: None,
             password: None,
+            last_checked: None,
         };
 
         for (key, value) in prop {
