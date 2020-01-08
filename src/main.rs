@@ -9,6 +9,7 @@ pub mod client;
 pub mod tasks;
 pub mod ui;
 pub mod data_fetcher;
+pub mod config;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -18,7 +19,6 @@ use ini::Ini;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-const CONF_FILE_NAME: &str = "conf.ini";
 const APPLICATION_NAME: &str = "com.github.gtk-rs.examples.basic";
 
 fn main() {
@@ -33,44 +33,7 @@ fn main() {
 }
 
 fn build_ui(application: &gtk::Application) {
-    // If there's an error trying to load the conf.ini
-    // then we should attempt to load the values from
-    // the local config for BOINC directly, and then
-    // immediately store them within the file, so that
-    // we may then use the Ini values as necessary
-    let conf = match Ini::load_from_file(CONF_FILE_NAME) {
-        Ok(config) => config,
-        Err(error) => {
-            panic!("Missing config file: {:?}", error)
-        }
-    };
-
-    let mut clients = HashMap::new();
-    let mut downed_clients = HashMap::new();
-
-    // Future work
-    for (host, prop) in conf {
-        let mut client = rpc::SimpleClient::default();
-        for (key, value) in prop {
-            match key.as_ref() {
-                "host" => {
-                    let addr = match std::net::Ipv4Addr::from_str(&value) {
-                        Ok(address) => address,
-                        Err(error) => panic!(error)
-                    };
-
-                    client.addr = std::net::SocketAddr::new(std::net::IpAddr::V4(addr), 31416);
-                },
-                "password" => {
-                    client.password = value.into();
-                },
-                _ => panic!("Unhandled {}", key)
-            }
-        }
-
-        clients.insert(host, client);
-    }
-
+    let mut endpoints = config::get_endpoints();
     let model = Rc::new(RefCell::new(data_fetcher::create_model()));
 
     let window = gtk::ApplicationWindow::new(application);
@@ -97,11 +60,11 @@ fn build_ui(application: &gtk::Application) {
 
     ui::add_data_columns(&data_treeview);
 
-    data_fetcher::get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
+    data_fetcher::get_data_for_model(&model.borrow(), &mut endpoints);
     Some(gtk::timeout_add(
         30000,
         move || {
-            data_fetcher::get_data_for_model(&model.borrow(), &mut clients, &mut downed_clients);
+            data_fetcher::get_data_for_model(&model.borrow(), &mut endpoints);
 
             glib::Continue(true)
         }
