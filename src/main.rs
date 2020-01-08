@@ -15,9 +15,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use gio::prelude::*;
 use gtk::prelude::*;
-use ini::Ini;
-use std::collections::HashMap;
-use std::str::FromStr;
 
 const APPLICATION_NAME: &str = "com.github.gtk-rs.examples.basic";
 
@@ -43,7 +40,7 @@ fn build_ui(application: &gtk::Application) {
     let paned_window = gtk::Paned::new(gtk::Orientation::Horizontal);
 
     // Set up both of the panes in the window
-    let (paned_window, host) = ui::Window::new(paned_window, true, 200);
+    let (paned_window, _host) = ui::Window::new(paned_window, true, 200);
     let (paned_window, data) = ui::Window::new(paned_window, false, 568);
 
     // Set all of the items on the host frame

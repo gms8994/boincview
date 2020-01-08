@@ -34,7 +34,7 @@ fn append_column(
     v: &mut Vec<gtk::TreeViewColumn>,
     treeview: &gtk::TreeView,
     max_width: Option<i32>,
-    as_progress: Option<bool>,
+    _as_progress: Option<bool>,
 ) -> i32 {
     let id = v.len() as i32;
     let renderer = gtk::CellRendererText::new();
