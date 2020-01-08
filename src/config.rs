@@ -9,7 +9,6 @@ const CONF_FILE_NAME: &str = "conf.ini";
 #[derive(Debug)]
 pub struct Endpoints {
     pub checkable : HashMap<Option<String>, Endpoint>,
-    pub downed : HashMap<Option<String>, u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -18,13 +17,13 @@ pub struct Endpoint {
     host: Option<std::net::SocketAddr>,
     password: Option<String>,
     pub last_checked: Option<u64>,
+    pub is_down: Option<bool>,
 }
 
 pub fn get_endpoints() -> Endpoints {
     let conf = load();
 
     let mut endpoints : HashMap<Option<String>, Endpoint> = HashMap::new();
-    let downed : HashMap<Option<String>, u64> = HashMap::new();
 
     // Future work
     for (host, prop) in conf {
@@ -33,6 +32,7 @@ pub fn get_endpoints() -> Endpoints {
             host: None,
             password: None,
             last_checked: None,
+            is_down: Some(false),
         };
 
         for (key, value) in prop {
@@ -57,7 +57,6 @@ pub fn get_endpoints() -> Endpoints {
 
     Endpoints {
         checkable : endpoints,
-        downed : downed
     }
 }
 
