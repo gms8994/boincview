@@ -60,11 +60,11 @@ pub fn get_endpoints() -> Endpoints {
 }
 
 pub fn get_client(endpoints : &Endpoints, endpoint : &Endpoint) -> Result<rpc::SimpleClient, String> {
-    for (name, endpoint) in &endpoints.checkable {
-        if name == &endpoint.name {
+    for (_name, checkable_endpoint) in &endpoints.checkable {
+        if endpoint.name == checkable_endpoint.name {
             let mut client = rpc::SimpleClient::default();
-            client.addr = endpoint.host.unwrap();
-            client.password = endpoint.password.clone();
+            client.addr = checkable_endpoint.host.unwrap();
+            client.password = checkable_endpoint.password.clone();
 
             return Ok(client);
         }
