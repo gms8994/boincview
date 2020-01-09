@@ -40,7 +40,6 @@ pub fn get_data_for_model(store : &gtk::ListStore, endpoints : &mut Endpoints) {
             },
             Err(error) => {
                 println!("Host {:?} responded with {:?} - last_checked {:?}", hostname, error, endpoints.checkable.get(&hostname).unwrap().last_checked);
-                let start_time = get_now();
 
                 endpoint.is_down = Some(true);
                 endpoint.last_checked = Some(get_now());
