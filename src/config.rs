@@ -11,13 +11,28 @@ pub struct Endpoints {
     pub checkable : HashMap<Option<String>, Endpoint>,
 }
 
+impl Endpoints {
+    fn new(&self) {
+
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Endpoint {
-    name: Option<String>,
-    host: Option<std::net::SocketAddr>,
+    pub name: Option<String>,
+    host: Option<String>,
     password: Option<String>,
     pub last_checked: Option<u64>,
     pub is_down: Option<bool>,
+}
+
+impl Endpoint {
+    pub fn host(&self) -> Option<String> {
+        self.host
+    }
+    pub fn password(&self) -> Option<&str> {
+        self.password
+    }
 }
 
 pub fn get_endpoints() -> Endpoints {
@@ -35,15 +50,13 @@ pub fn get_endpoints() -> Endpoints {
             is_down: Some(false),
         };
 
-        for (key, value) in prop {
+        for (key, mut value) in prop {
             match key.as_ref() {
                 "host" => {
-                    let addr = match std::net::Ipv4Addr::from_str(&value) {
-                        Ok(address) => address,
-                        Err(error) => panic!(error)
-                    };
-
-                    endpoint.host = Some(std::net::SocketAddr::new(std::net::IpAddr::V4(addr), 31416));
+                    let mut host = &mut value;
+                    host.push_str(":31416");
+                    
+                    endpoint.host = Some(host.to_string());
                 },
                 "password" => {
                     endpoint.password = Some(value);
@@ -58,20 +71,6 @@ pub fn get_endpoints() -> Endpoints {
     Endpoints {
         checkable : endpoints,
     }
-}
-
-pub fn get_client(endpoints : &Endpoints, endpoint : &Endpoint) -> Result<rpc::SimpleClient, String> {
-    for (_name, checkable_endpoint) in &endpoints.checkable {
-        if endpoint.name == checkable_endpoint.name {
-            let mut client = rpc::SimpleClient::default();
-            client.addr = checkable_endpoint.host.unwrap();
-            client.password = checkable_endpoint.password.clone();
-
-            return Ok(client);
-        }
-    }
-
-    return Err("No host found".to_string());
 }
 
 fn load() -> Ini {

@@ -11,7 +11,7 @@ pub trait ModifiedResult {
     fn elapsed_as_string(&self) -> Option<String>;
 }
 
-impl ModifiedResult for rpc::models::Result {
+impl ModifiedResult for rpc::models::TaskResult {
     fn progress(&self) -> f64 {
         let current_cpu_time = self.final_cpu_time.unwrap();
         let remaining_cpu_time = self.remaining();
