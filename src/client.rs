@@ -3,6 +3,7 @@ use rpc::errors::*;
 use std::collections::HashMap;
 use std::option::Option;
 use futures::future::Future;
+use tokio::prelude::*;
 
 pub struct PopulatedResults {
     pub tasks: HashMap<String, Vec<rpc::models::TaskResult>>,
@@ -16,24 +17,22 @@ pub trait SimpleClient {
 }
 
 impl SimpleClient for rpc::Client {
-    fn tasks(&mut self) -> Result<Vec<rpc::models::TaskResult>, Error> {
+    #[tokio::main]
+    async fn tasks(&mut self) -> Result<Vec<rpc::models::TaskResult>, Error> {
         let get_results_task = self.get_results(false);
 
-        return futures::executor::block_on(async {
-            let results = get_results_task.await;
-            println!("{:?}", results);
-            results
-        });
+        let results = get_results_task.await;
+        println!("tasks {:?}", results);
+        results
     }
 
-    fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error> {
+    #[tokio::main]
+    async fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error> {
         let get_projects_task = self.get_projects();
 
-        return futures::executor::block_on(async {
-            let results = get_projects_task.await;
-            println!("{:?}", results);
-            results
-        });
+        let results = get_projects_task.await;
+        println!("projects {:?}", results);
+        results
     }
 
     fn populate(&mut self, hostname : &Option<String>) -> Result<PopulatedResults, Error> {

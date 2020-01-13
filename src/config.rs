@@ -12,12 +12,6 @@ pub struct Endpoints {
     pub checkable : HashMap<Option<String>, Endpoint>,
 }
 
-impl Endpoints {
-    fn new(&self) {
-
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Endpoint {
     pub name: Option<String>,
@@ -75,7 +69,7 @@ pub fn get_endpoints() -> Endpoints {
 }
 
 #[tokio::main]
-pub fn client(endpoint : &Endpoint) -> Result<rpc::Client, Error> {
+pub async fn client(endpoint : &Endpoint) -> Result<rpc::Client, Error> {
     let client_task = rpc::Client::connect(endpoint.host().unwrap(), endpoint.password());
 
     return futures::executor::block_on(async {

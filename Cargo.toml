@@ -11,7 +11,7 @@ glib = "0.9"
 chrono = "0.4.10"
 rust-ini = "0.13"
 futures = "0.3"
-tokio = { version = "0.2", features = ["dns", "io-util", "tcp"] }
+tokio = { version = "0.2", features = ["full"] }
 
 [dependencies.gtk]
 version = "0.8.0"
