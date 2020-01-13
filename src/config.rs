@@ -3,6 +3,7 @@ extern crate ini;
 use ini::Ini;
 use std::collections::HashMap;
 use std::str::FromStr;
+use boinc_rpc::errors::Error;
 
 const CONF_FILE_NAME: &str = "conf.ini";
 
@@ -71,6 +72,15 @@ pub fn get_endpoints() -> Endpoints {
     Endpoints {
         checkable : endpoints,
     }
+}
+
+#[tokio::main]
+pub fn client(endpoint : &Endpoint) -> Result<rpc::Client, Error> {
+    let client_task = rpc::Client::connect(endpoint.host().unwrap(), endpoint.password());
+
+    return futures::executor::block_on(async {
+        client_task.await
+    });
 }
 
 fn load() -> Ini {

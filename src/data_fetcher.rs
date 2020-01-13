@@ -2,10 +2,11 @@ use gtk::prelude::*;
 use std::collections::HashMap;
 use std::time::SystemTime;
 
+use crate::client::*;
 use crate::tasks::*;
 use crate::config::*;
 
-pub async fn get_data_for_model(store : &gtk::ListStore, endpoints : &mut Endpoints) {
+pub fn get_data_for_model(store : &gtk::ListStore, endpoints : &mut Endpoints) {
     store.clear();
 
     let mut task_list : HashMap<String, Vec<rpc::models::TaskResult>> = HashMap::new();
@@ -23,18 +24,35 @@ pub async fn get_data_for_model(store : &gtk::ListStore, endpoints : &mut Endpoi
             endpoint.is_down = Some(false);
         }
 
-        let mut client = rpc::Client::connect(
-            endpoint.host().expect("No host provided"),
-            endpoint.password()
-        ).await.unwrap();
+        let (client_tasks, client_projects);
 
-        task_list.insert(hostname.as_ref().unwrap().to_string(), client.get_results(false).await.unwrap());
+        println!("Instantiating client");
+        let mut client = match crate::config::client(&endpoint) {
+            Ok(client) => client,
+            Err(error) => panic!(error),
+        };
+        println!("Done instantiating client");
 
-        for project in client.get_projects().await.unwrap() {
-            project_list.insert(project.url.unwrap(), project.name.unwrap());
+        let population_result = client.populate(&hostname);
+        match population_result {
+            Ok(result) => {
+                client_tasks = result.tasks;
+                client_projects = result.projects;
+                endpoints.checkable.get_mut(&hostname).unwrap().last_checked = Some(get_now());
+            },
+            Err(error) => {
+                println!("Host {:?} responded with {:?} - last_checked {:?}", hostname, error, endpoints.checkable.get(&hostname).unwrap().last_checked);
+
+                endpoint.is_down = Some(true);
+                endpoint.last_checked = Some(get_now());
+                continue;
+            }
         }
 
         println!("Host {:?} successfully updated: last_checked {:?}", hostname, endpoints.checkable.get(&hostname).unwrap().last_checked);
+
+        task_list.extend(client_tasks);
+        project_list.extend(client_projects);
     }
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
