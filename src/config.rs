@@ -28,10 +28,10 @@ pub struct Endpoint {
 
 impl Endpoint {
     pub fn host(&self) -> Option<String> {
-        self.host
+        Some(self.host.as_ref().unwrap().to_string())
     }
     pub fn password(&self) -> Option<&str> {
-        self.password
+        Some(self.password.as_ref().unwrap().as_str())
     }
 }
 
