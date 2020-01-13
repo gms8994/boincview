@@ -5,54 +5,36 @@ use std::time::SystemTime;
 use crate::tasks::*;
 use crate::config::*;
 
-pub fn get_data_for_model(store : &gtk::ListStore, endpoints : &mut Endpoints) {
-    println!("{:?}", store);
+pub async fn get_data_for_model(store : &gtk::ListStore, endpoints : &mut Endpoints) {
     store.clear();
 
     let mut task_list : HashMap<String, Vec<rpc::models::TaskResult>> = HashMap::new();
     let mut project_list : HashMap<String, String> = HashMap::new();
 
     for (hostname, mut endpoint) in endpoints.checkable.clone() {
-        // println!("Going to update host {:?}", hostname);
+        println!("Going to update host {:?}", hostname);
         if endpoint.is_down.unwrap() {
             if get_now() - endpoint.last_checked.unwrap() <= 90 {
-                // println!("No need to update host {:?} - it's down", hostname);
+                println!("No need to update host {:?} - it's down", hostname);
                 continue;
             }
 
-            // println!("Host {:?} has been down more than 90s - rechecking for up", hostname);
+            println!("Host {:?} has been down more than 90s - rechecking for up", hostname);
             endpoint.is_down = Some(false);
         }
-
-        let (client_tasks, client_projects);
-
-        println!("{:?}", endpoint);
 
         let mut client = rpc::Client::connect(
             endpoint.host().expect("No host provided"),
             endpoint.password()
-        );
-        
-        let population_result = crate::client::populate(&client, &hostname);
-        match population_result {
-            Ok(result) => {
-                client_tasks = result.tasks;
-                client_projects = result.projects;
-                endpoints.checkable.get_mut(&hostname).unwrap().last_checked = Some(get_now());
-            },
-            Err(error) => {
-                println!("Host {:?} responded with {:?} - last_checked {:?}", hostname, error, endpoints.checkable.get(&hostname).unwrap().last_checked);
+        ).await.unwrap();
 
-                endpoint.is_down = Some(true);
-                endpoint.last_checked = Some(get_now());
-                continue;
-            }
+        task_list.insert(hostname.as_ref().unwrap().to_string(), client.get_results(false).await.unwrap());
+
+        for project in client.get_projects().await.unwrap() {
+            project_list.insert(project.url.unwrap(), project.name.unwrap());
         }
 
         println!("Host {:?} successfully updated: last_checked {:?}", hostname, endpoints.checkable.get(&hostname).unwrap().last_checked);
-
-        task_list.extend(client_tasks);
-        project_list.extend(client_projects);
     }
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];

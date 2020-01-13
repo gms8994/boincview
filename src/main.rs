@@ -29,7 +29,7 @@ fn main() {
     application.run(&[]);
 }
 
-fn build_ui(application: &gtk::Application) {
+async fn build_ui(application: &gtk::Application) {
     let mut endpoints = config::get_endpoints();
     let model = Rc::new(RefCell::new(data_fetcher::create_model()));
 
@@ -57,11 +57,11 @@ fn build_ui(application: &gtk::Application) {
 
     ui::add_data_columns(&data_treeview);
 
-    data_fetcher::get_data_for_model(&model.borrow(), &mut endpoints);
+    data_fetcher::get_data_for_model(&model.borrow(), &mut endpoints).await;
     Some(gtk::timeout_add(
         30000,
-        move || {
-            data_fetcher::get_data_for_model(&model.borrow(), &mut endpoints);
+        async move || {
+            data_fetcher::get_data_for_model(&model.borrow(), &mut endpoints).await;
 
             glib::Continue(true)
         }
