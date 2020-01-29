@@ -21,18 +21,22 @@ impl SimpleClient for rpc::Client {
     async fn tasks(&mut self) -> Result<Vec<rpc::models::TaskResult>, Error> {
         let get_results_task = self.get_results(false);
 
-        let results = get_results_task.await;
-        println!("tasks {:?}", results);
-        results
+        return futures::executor::block_on(async {
+            let results = get_results_task.await;
+            println!("tasks {:?}", results);
+            results
+        });
     }
 
     #[tokio::main]
     async fn projects(&mut self) -> Result<Vec<rpc::models::ProjectInfo>, Error> {
         let get_projects_task = self.get_projects();
 
-        let results = get_projects_task.await;
-        println!("projects {:?}", results);
-        results
+        return futures::executor::block_on(async {
+            let results = get_projects_task.await;
+            println!("projects {:?}", results);
+            results
+        });
     }
 
     fn populate(&mut self, hostname : &Option<String>) -> Result<PopulatedResults, Error> {
