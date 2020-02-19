@@ -1,3 +1,5 @@
+#![feature(async_closure)]
+
 extern crate boinc_rpc as rpc;
 extern crate encoding;
 extern crate gio;
@@ -15,7 +17,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use gio::prelude::*;
 use gtk::prelude::*;
-use tokio::prelude::*;
 use std::collections::HashMap;
 use std::time::SystemTime;
 use rpc::errors::Error;

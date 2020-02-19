@@ -2,7 +2,6 @@ extern crate ini;
 
 use ini::Ini;
 use std::collections::HashMap;
-use std::str::FromStr;
 use boinc_rpc::errors::Error;
 
 const CONF_FILE_NAME: &str = "conf.ini";
