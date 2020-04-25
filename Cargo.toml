@@ -5,18 +5,7 @@ authors = ["Glen Solsberry <glen@dp.cx>"]
 edition = "2018"
 
 [dependencies]
-encoding = "0.2.33"
-boinc-rpc = { git = "https://github.com/vorot93/boinc-rpc-rs" }
-glib = "0.9"
-chrono = "0.4.10"
-rust-ini = "0.13"
-futures = "0.3"
-tokio = { version = "0.2", features = ["full"] }
-
-[dependencies.gtk]
-version = "0.8.0"
-features = ["v3_16"]
-
-[dependencies.gio]
-version = ""
-features = ["v2_44"]
+boinc-rpc = { git = "https://github.com/vorot93/rust-boinc-rpc" }
+tokio = { version = "0.2", features = ["dns", "sync", "tcp"] }
+tower = "0.3"
+treexml = "0.7"

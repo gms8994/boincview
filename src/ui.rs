@@ -1,5 +1,4 @@
 extern crate gtk;
-extern crate glib;
 
 use gtk::prelude::*;
 
@@ -56,37 +55,4 @@ fn append_column(
     v.push(column);
 
     return id;
-}
-
-pub struct Window {
-    pub frame : gtk::Frame,
-    pub frame_box: gtk::Box,
-    pub scrolled_window: gtk::ScrolledWindow,
-}
-
-impl Window {
-    pub fn new(window : gtk::Paned, is_pane1 : bool, size : i32) -> (gtk::Paned, Self) {
-        let frame = gtk::Frame::new(None);
-        gtk::FrameExt::set_shadow_type(&frame, gtk::ShadowType::In);
-        if is_pane1 {
-            gtk::Paned::pack1(&window, &frame, true, true);
-        } else {
-            gtk::Paned::pack2(&window, &frame, true, true);
-        }
-        gtk::WidgetExt::set_size_request(&frame, size, -1);
-
-        let frame_box = gtk::Box::new(gtk::Orientation::Vertical, 8);
-        frame.add(&frame_box);
-
-        let s_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-        s_window.set_shadow_type(gtk::ShadowType::EtchedIn);
-        s_window.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
-        frame_box.add(&s_window);
-
-        (window, Window {
-            frame: frame,
-            frame_box: frame_box,
-            scrolled_window: s_window
-        })
-    }
 }
