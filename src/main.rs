@@ -43,7 +43,7 @@ impl Host {
     }
 }
 
-fn get_necessary_data_from_hosts(project_list : &mut HashMap<Option<String>, models::ProjectInfo>) -> Vec<Host>
+fn get_necessary_data_from_hosts(mut project_list : &HashMap<Option<String>, models::ProjectInfo>) -> Vec<Host>
 {
     let mut hosts = Vec::new();
 
@@ -63,7 +63,7 @@ fn get_necessary_data_from_hosts(project_list : &mut HashMap<Option<String>, mod
     hosts
 }
 
-async fn update_projects_list(hosts : &mut Vec<Host>, project_list : &mut HashMap<Option<String>, models::ProjectInfo>)
+async fn update_projects_list(hosts : &mut Vec<Host>, mut project_list : &HashMap<Option<String>, models::ProjectInfo>)
 {
     for (_idx, host) in hosts.into_iter().enumerate() {
         // Here we want to check to see if we need to fetch
@@ -73,17 +73,17 @@ async fn update_projects_list(hosts : &mut Vec<Host>, project_list : &mut HashMa
         // list - if so, we need to fetch the proejcts list
         // from the host
 
-        let mut has_all_projects : bool = false;
+        let mut has_missing_projects : bool = false;
 
         if let Some(results) = host.results.clone() {
             for (_, result) in results.into_iter().enumerate() {
                 if ! project_list.contains_key(&result.project_url) {
-                    has_all_projects = true;
+                    has_missing_projects = true;
                 }
             }
         }
 
-        if ! has_all_projects {
+        if ! has_missing_projects {
             return;
         }
 
@@ -268,7 +268,7 @@ fn build_ui(application: &gtk::Application) {
     });
 }
 
-fn get_data_for_model(store : &gtk::ListStore, project_list : &mut HashMap<Option<String>, models::ProjectInfo>) {
+fn get_data_for_model(store : &gtk::ListStore, mut project_list : &HashMap<Option<String>, models::ProjectInfo>) {
     store.clear();
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
