@@ -43,7 +43,7 @@ impl Host {
     }
 }
 
-fn get_necessary_data_from_hosts(mut project_list : &HashMap<Option<String>, models::ProjectInfo>) -> Vec<Host>
+fn get_necessary_data_from_hosts(mut project_list : &mut HashMap<Option<String>, models::ProjectInfo>) -> Vec<Host>
 {
     let mut hosts = Vec::new();
 
@@ -57,13 +57,13 @@ fn get_necessary_data_from_hosts(mut project_list : &HashMap<Option<String>, mod
     });
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_projects_list(&mut hosts, &mut project_list).await;
+        update_projects_list(&hosts, &mut project_list).await;
     });
 
     hosts
 }
 
-async fn update_projects_list(hosts : &mut Vec<Host>, mut project_list : &HashMap<Option<String>, models::ProjectInfo>)
+async fn update_projects_list(hosts : &Vec<Host>, mut project_list : &mut HashMap<Option<String>, models::ProjectInfo>)
 {
     for (_idx, host) in hosts.into_iter().enumerate() {
         // Here we want to check to see if we need to fetch
@@ -268,7 +268,7 @@ fn build_ui(application: &gtk::Application) {
     });
 }
 
-fn get_data_for_model(store : &gtk::ListStore, mut project_list : &HashMap<Option<String>, models::ProjectInfo>) {
+fn get_data_for_model(store : &gtk::ListStore, mut project_list : &mut HashMap<Option<String>, models::ProjectInfo>) {
     store.clear();
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
@@ -279,7 +279,7 @@ fn get_data_for_model(store : &gtk::ListStore, mut project_list : &HashMap<Optio
             for (_, result) in results.into_iter().enumerate() {
                 let values: [&dyn ToValue; 14] = [
                     &host.addr,
-                    &host.projects[&result.project_url].name,
+                    &project_list.get(&result.project_url).unwrap().name,
                     &result.name,
                     &format!("{0:.2} %", result.progress()),
                     &result.elapsed_as_string(),
