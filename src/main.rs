@@ -43,7 +43,7 @@ impl Host {
     }
 }
 
-fn get_necessary_data_from_hosts() -> Vec<Host>
+fn get_necessary_data_from_hosts(project_list : &mut HashMap<Option<String>, models::ProjectInfo>) -> Vec<Host>
 {
     let mut hosts = Vec::new();
 
@@ -57,13 +57,13 @@ fn get_necessary_data_from_hosts() -> Vec<Host>
     });
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_projects_list(&mut hosts).await;
+        update_projects_list(&mut hosts, &mut project_list).await;
     });
 
     hosts
 }
 
-async fn update_projects_list(hosts : &mut Vec<Host>)
+async fn update_projects_list(hosts : &mut Vec<Host>, project_list : &mut HashMap<Option<String>, models::ProjectInfo>)
 {
     for (_idx, host) in hosts.into_iter().enumerate() {
         // Here we want to check to see if we need to fetch
@@ -77,7 +77,7 @@ async fn update_projects_list(hosts : &mut Vec<Host>)
 
         if let Some(results) = host.results.clone() {
             for (_, result) in results.into_iter().enumerate() {
-                if ! host.projects.contains_key(&result.project_url) {
+                if ! project_list.contains_key(&result.project_url) {
                     has_all_projects = true;
                 }
             }
@@ -100,7 +100,7 @@ async fn update_projects_list(hosts : &mut Vec<Host>)
         if let Some(projects) = client_projects.clone() {
             for (_, project) in projects.into_iter().enumerate() {
                 let my_proj = project.clone();
-                host.projects.insert(project.url, my_proj);
+                project_list.insert(project.url, my_proj);
             }
         }
     }
@@ -200,6 +200,7 @@ fn create_model() -> gtk::ListStore {
 
 fn build_ui(application: &gtk::Application) {
     let model = Rc::new(RefCell::new(create_model()));
+    let mut project_list : HashMap<Option<String>, models::ProjectInfo> = HashMap::new();
 
     let window = gtk::ApplicationWindow::new(application);
     window.set_title("BOINCView");
@@ -235,13 +236,13 @@ fn build_ui(application: &gtk::Application) {
 
     add_columns(&treeview);
 
-    get_data_for_model(&model.borrow());
+    // get_data_for_model(&model.borrow());
 
     // Every 5 seconds, we'll update the data
     Some(gtk::timeout_add(
         5000,
         move || {
-            get_data_for_model(&model.borrow());
+            get_data_for_model(&model.borrow(), &mut project_list);
 
             glib::Continue(true)
         }
@@ -267,11 +268,11 @@ fn build_ui(application: &gtk::Application) {
     });
 }
 
-fn get_data_for_model(store : &gtk::ListStore) {
+fn get_data_for_model(store : &gtk::ListStore, project_list : &mut HashMap<Option<String>, models::ProjectInfo>) {
     store.clear();
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-    let hosts = get_necessary_data_from_hosts();
+    let hosts = get_necessary_data_from_hosts(&mut project_list);
 
     for host in hosts {
         if let Some(results) = host.results {
