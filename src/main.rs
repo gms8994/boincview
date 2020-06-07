@@ -2,9 +2,12 @@ extern crate gtk;
 extern crate glib;
 
 use tokio;
-use boinc_rpc::{models};
+use boinc_rpc::models::ProjectInfo;
 
-use chrono::Duration;
+mod lib;
+use crate::lib::ModifiedResult;
+use crate::lib::Host;
+
 use gio::prelude::*;
 use gtk::prelude::*;
 use std::rc::Rc;
@@ -24,26 +27,7 @@ fn main() {
     application.run(&[]);
 }
 
-#[derive(Debug)]
-pub struct Host {
-    addr: &'static str,
-    password: Option<&'static str>,
-    projects: HashMap<Option<String>, models::ProjectInfo>,
-    results: Option<Vec<models::TaskResult>>,
-}
-
-impl Host {
-    pub fn new(addr : &'static str, password : Option<&'static str>) -> Self {
-        Host {
-            addr : addr,
-            password : password,
-            projects : HashMap::new(),
-            results : None,
-        }
-    }
-}
-
-fn get_necessary_data_from_hosts(mut project_list : &mut HashMap<Option<String>, models::ProjectInfo>) -> Vec<Host>
+fn get_necessary_data_from_hosts(mut project_list : &mut HashMap<Option<String>, ProjectInfo>) -> Vec<Host>
 {
     let mut hosts = Vec::new();
 
@@ -63,7 +47,7 @@ fn get_necessary_data_from_hosts(mut project_list : &mut HashMap<Option<String>,
     hosts
 }
 
-async fn update_projects_list(hosts : &Vec<Host>, mut project_list : &mut HashMap<Option<String>, models::ProjectInfo>)
+async fn update_projects_list(hosts : &Vec<Host>, mut project_list : &mut HashMap<Option<String>, ProjectInfo>)
 {
     for (_idx, host) in hosts.into_iter().enumerate() {
         // Here we want to check to see if we need to fetch
@@ -200,7 +184,7 @@ fn create_model() -> gtk::ListStore {
 
 fn build_ui(application: &gtk::Application) {
     let model = Rc::new(RefCell::new(create_model()));
-    let mut project_list : HashMap<Option<String>, models::ProjectInfo> = HashMap::new();
+    let mut project_list : HashMap<Option<String>, ProjectInfo> = HashMap::new();
 
     let window = gtk::ApplicationWindow::new(application);
     window.set_title("BOINCView");
@@ -268,7 +252,7 @@ fn build_ui(application: &gtk::Application) {
     });
 }
 
-fn get_data_for_model(store : &gtk::ListStore, mut project_list : &mut HashMap<Option<String>, models::ProjectInfo>) {
+fn get_data_for_model(store : &gtk::ListStore, mut project_list : &mut HashMap<Option<String>, ProjectInfo>) {
     store.clear();
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
@@ -297,103 +281,5 @@ fn get_data_for_model(store : &gtk::ListStore, mut project_list : &mut HashMap<O
                 store.set(&store.append(), &col_indices, &values);
             }
         }
-    }
-}
-
-pub trait ModifiedResult {
-    fn progress(&self) -> f64;
-    fn state(&self) -> Option<String>;
-    fn remaining(&self) -> f64;
-    fn elapsed(&self) -> f64;
-    fn remaining_as_string(&self) -> Option<String>;
-    fn elapsed_as_string(&self) -> Option<String>;
-}
-
-impl ModifiedResult for boinc_rpc::models::TaskResult {
-    fn progress(&self) -> f64 {
-        let current_cpu_time = self.final_cpu_time.unwrap();
-        let remaining_cpu_time = self.remaining();
-        let expected_total_runtime = current_cpu_time + remaining_cpu_time;
-
-        let progress = (current_cpu_time / expected_total_runtime) * 100.00;
-        return progress;
-    }
-
-    fn remaining_as_string(&self) -> Option<String> {
-        let duration = chrono::Duration::seconds(self.remaining().round() as i64);
-
-        if duration.num_seconds() == 0 {
-            return Some("--".to_string());
-        }
-
-        return duration.formatted(Some("d h:m:s".to_string()));
-    }
-
-    fn remaining(&self) -> f64 {
-        return self.estimated_cpu_time_remaining.unwrap();
-    }
-
-    fn elapsed_as_string(&self) -> Option<String> {
-        let duration = chrono::Duration::seconds(self.elapsed().round() as i64);
-
-        if duration.num_seconds() == 0 {
-            return Some("--".to_string());
-        }
-
-        return duration.formatted(Some("d h:m:s".to_string()));
-    }
-
-    fn elapsed(&self) -> f64 {
-        return self.final_elapsed_time.unwrap();
-    }
-
-    // This returns an incorrect state - all values are currently Some(2)
-    fn state(&self) -> Option<String> {
-        match self.active_task {
-            None => return Some("Unknown state".to_string()),
-            _ => return Some("Active".to_string()),
-        }
-    }
-}
-
-pub trait LocalDuration {
-    fn formatted(&self, format : Option<String>) -> Option<String>;
-    fn calculate(&self, total : &mut i64, seconds : &mut i64, format : &String, contains : char, appender : Option<String>) -> String;
-}
-
-impl LocalDuration for Duration {
-    fn formatted(&self, format : Option<String>) -> Option<String> {
-        let mut formatted = String::new();
-        let mut full_seconds = self.num_seconds();
-
-        if let Some(format) = format {
-            formatted.push_str(&self.calculate(&mut full_seconds, &mut 86400, &format, 'd', Some("d ".to_string())));
-            formatted.push_str(&self.calculate(&mut full_seconds, &mut 3600, &format, 'h', Some(":".to_string())));
-            formatted.push_str(&self.calculate(&mut full_seconds, &mut 60, &format, 'm', Some(":".to_string())));
-            formatted.push_str(&self.calculate(&mut full_seconds, &mut 0, &format, 's', None));
-        }
-
-        return Some(formatted);
-    }
-
-    fn calculate(&self, total : &mut i64, seconds : &mut i64, format : &String, contains : char, appender : Option<String>) -> String {
-        let mut result = String::new();
-
-        if format.contains(contains) && total >= seconds {
-            let unit;
-            if seconds == &mut 0 {
-                unit = *total;
-            } else {
-                unit = ((*total / *seconds) as f64).round() as i64;
-            }
-            *total -= unit * *seconds;
-
-            result.push_str(&format!("{:02}", unit));
-            if let Some(appender) = appender {
-                result.push_str(&appender);
-            }
-        }
-
-        return result;
     }
 }
