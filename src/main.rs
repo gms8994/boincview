@@ -27,29 +27,21 @@ fn main() {
     application.run(&[]);
 }
 
-fn get_necessary_data_from_hosts(mut project_list : &mut HashMap<Option<String>, ProjectInfo>) -> Vec<Host>
+fn get_necessary_data_from_hosts(mut host_list : &mut Vec<Host>, mut project_list : &mut HashMap<Option<String>, ProjectInfo>)
 {
-    let mut hosts = Vec::new();
-
-    hosts.push(Host::new("127.0.0.1:31416", Some("1033644eaad1ea7d91bc48a749f1620b")));
-    // hosts.push(Host::new("192.168.1.108:31416", Some("5e09d64108b3871cae6ef4bd0c599c69")));
-    hosts.push(Host::new("192.168.1.113:31416", Some("95405a40b449164295bba46fa405cc1b")));
-
     // Fetch all of the tasks, then fetch the projects
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_task_list(&mut hosts).await;
+        update_task_list(&mut host_list).await;
     });
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_projects_list(&hosts, &mut project_list).await;
+        update_projects_list(&host_list, &mut project_list).await;
     });
-
-    hosts
 }
 
 async fn update_projects_list(hosts : &Vec<Host>, mut project_list : &mut HashMap<Option<String>, ProjectInfo>)
 {
-    for (_idx, host) in hosts.into_iter().enumerate() {
+    for host in hosts.iter() {
         // Here we want to check to see if we need to fetch
         // the projects - at this point, we should have the
         // list of tasks, and so we can check to see if any
@@ -185,6 +177,11 @@ fn create_model() -> gtk::ListStore {
 fn build_ui(application: &gtk::Application) {
     let model = Rc::new(RefCell::new(create_model()));
     let mut project_list : HashMap<Option<String>, ProjectInfo> = HashMap::new();
+    let mut host_list = Vec::new();
+
+    host_list.push(Host::new("127.0.0.1:31416", Some("1033644eaad1ea7d91bc48a749f1620b")));
+    // hosts.push(Host::new("192.168.1.108:31416", Some("5e09d64108b3871cae6ef4bd0c599c69")));
+    host_list.push(Host::new("192.168.1.113:31416", Some("95405a40b449164295bba46fa405cc1b")));
 
     let window = gtk::ApplicationWindow::new(application);
     window.set_title("BOINCView");
@@ -226,7 +223,7 @@ fn build_ui(application: &gtk::Application) {
     Some(gtk::timeout_add(
         5000,
         move || {
-            get_data_for_model(&model.borrow(), &mut project_list);
+            get_data_for_model(&model.borrow(), &mut host_list, &mut project_list);
 
             glib::Continue(true)
         }
@@ -252,15 +249,15 @@ fn build_ui(application: &gtk::Application) {
     });
 }
 
-fn get_data_for_model(store : &gtk::ListStore, mut project_list : &mut HashMap<Option<String>, ProjectInfo>) {
+fn get_data_for_model(store : &gtk::ListStore, mut host_list : &mut Vec<Host>, mut project_list : &mut HashMap<Option<String>, ProjectInfo>) {
     store.clear();
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-    let hosts = get_necessary_data_from_hosts(&mut project_list);
+    get_necessary_data_from_hosts(&mut host_list, &mut project_list);
 
-    for host in hosts {
-        if let Some(results) = host.results {
-            for (_, result) in results.into_iter().enumerate() {
+    for host in host_list.iter() {
+        if let Some(results) = host.results.as_ref() {
+            for result in results.iter() {
                 let values: [&dyn ToValue; 14] = [
                     &host.addr,
                     &project_list.get(&result.project_url).unwrap().name,
