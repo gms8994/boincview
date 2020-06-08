@@ -32,17 +32,19 @@ fn get_necessary_data_from_hosts(mut project_list : &mut HashMap<Option<String>,
     let mut hosts = Vec::new();
 
     hosts.push(Host::new("127.0.0.1:31416", Some("1033644eaad1ea7d91bc48a749f1620b")));
-    // hosts.push(Host::new("192.168.1.108:31416", Some("5e09d64108b3871cae6ef4bd0c599c69")));
     hosts.push(Host::new("192.168.1.113:31416", Some("95405a40b449164295bba46fa405cc1b")));
+    // hosts.push(Host::new("192.168.1.108:31416", Some("5e09d64108b3871cae6ef4bd0c599c69")));
 
-    // Fetch all of the tasks, then fetch the projects
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_task_list(&mut hosts).await;
-    });
+    for mut host in hosts.iter() {
+        // Fetch all of the tasks, then fetch the projects
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            update_tasks_for_host(&mut host).await;
+        });
+    }
 
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_projects_list(&hosts, &mut project_list).await;
-    });
+    // tokio::runtime::Runtime::new().unwrap().block_on(async {
+    //     update_projects_list(&hosts, &mut project_list).await;
+    // });
 
     hosts
 }
@@ -90,21 +92,19 @@ async fn update_projects_list(hosts : &Vec<Host>, mut project_list : &mut HashMa
     }
 }
 
-async fn update_task_list(hosts : &mut Vec<Host>)
+async fn update_tasks_for_host(mut host : &mut Host)
 {
-    for (_idx, host) in hosts.into_iter().enumerate() {
-        println!("Fetching tasks for {:?}", host.addr);
+    println!("Fetching tasks for {:?}", host.addr);
 
-        let transport = boinc_rpc::Transport::new(host.addr, host.password);
-        let mut client = boinc_rpc::Client::new(transport);
+    let transport = boinc_rpc::Transport::new(host.addr, host.password);
+    let mut client = boinc_rpc::Client::new(transport);
 
-        let client_tasks = match client.get_results(false).await {
-            Ok(t) => t,
-            Err(t) => panic!(t),
-        };
+    let client_tasks = match client.get_results(false).await {
+        Ok(t) => t,
+        Err(t) => panic!(t),
+    };
 
-        host.results = Some(client_tasks);
-    }
+    host.results = Some(client_tasks);
 }
 
 pub fn add_columns(treeview: &gtk::TreeView) {
@@ -253,6 +253,7 @@ fn build_ui(application: &gtk::Application) {
 }
 
 fn get_data_for_model(store : &gtk::ListStore, mut project_list : &mut HashMap<Option<String>, ProjectInfo>) {
+    dbg!(&store);
     store.clear();
 
     let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];

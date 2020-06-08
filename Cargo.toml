@@ -11,6 +11,9 @@ tokio = { version = "0.2", features = ["dns", "sync", "tcp"] }
 glib = "0.9"
 chrono = "0.4.10"
 
+[dev-dependencies]
+criterion = "0.3"
+
 [dependencies.gtk]
 version = "0.8.0"
 features = ["v3_16"]
@@ -18,3 +21,7 @@ features = ["v3_16"]
 [dependencies.gio]
 version = ""
 features = ["v2_44"]
+
+[[bench]]
+name = "boincview_benchmark"
+harness = false
