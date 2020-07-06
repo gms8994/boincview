@@ -9,7 +9,7 @@ boinc-rpc = { git = "https://github.com/vorot93/rust-boinc-rpc" }
 # boinc-rpc = { path = "../rust-boinc-rpc" }
 tokio = { version = "0.2", features = ["dns", "sync", "tcp"] }
 glib = "0.9"
-chrono = "0.4.10"
+chrono = "0.4.13"
 
 [dependencies.gtk]
 version = "0.8.0"
