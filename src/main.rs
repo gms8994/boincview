@@ -1,103 +1,88 @@
-extern crate gtk;
-extern crate glib;
-
-use tokio;
-use boinc_rpc::models::ProjectInfo;
-
-mod lib;
-use crate::lib::ModifiedResult;
-use crate::lib::Host;
-
-use gio::prelude::*;
 use gtk::prelude::*;
+use gtk::{Application, ApplicationWindow};
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::collections::HashMap;
+
+mod lib;
+use crate::lib::Host;
 
 const APPLICATION_NAME: &str = "com.github.gtk-rs.examples.basic";
 
 fn main() {
-    let application = gtk::Application::new(Some(APPLICATION_NAME), gio::ApplicationFlags::empty())
-        .expect("Initialization failed...");
-
-    application.connect_startup(move |app| {
-        build_ui(app);
-    });
-
-    application.run(&[]);
+    let app = Application::builder().application_id(APPLICATION_NAME).build();
+    app.connect_activate(build_ui);
+    app.run();
 }
 
-fn get_necessary_data_from_hosts(mut host_list : &mut Vec<Host>, mut project_list : &mut HashMap<Option<String>, ProjectInfo>)
-{
-    // Fetch all of the tasks, then fetch the projects
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_task_list(&mut host_list).await;
-    });
+// fn get_necessary_data_from_hosts(host_list : &mut Vec<Host>, project_list : &mut HashMap<Option<String>, ProjectInfo>)
+// {
+//     // Fetch all of the tasks, then fetch the projects
+//     tokio::runtime::Runtime::new().unwrap().block_on(async {
+//         update_task_list(&mut host_list).await;
+//     });
+// 
+//     tokio::runtime::Runtime::new().unwrap().block_on(async {
+//         update_projects_list(&host_list, &mut project_list).await;
+//     });
+// }
 
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        update_projects_list(&host_list, &mut project_list).await;
-    });
-}
-
-async fn update_projects_list(hosts : &Vec<Host>, mut project_list : &mut HashMap<Option<String>, ProjectInfo>)
-{
-    for host in hosts.iter() {
-        // Here we want to check to see if we need to fetch
-        // the projects - at this point, we should have the
-        // list of tasks, and so we can check to see if any
-        // of the tasks *don't* have an entry in the projects
-        // list - if so, we need to fetch the proejcts list
-        // from the host
-
-        let mut has_missing_projects : bool = false;
-
-        if let Some(results) = host.results.clone() {
-            for (_, result) in results.into_iter().enumerate() {
-                if ! project_list.contains_key(&result.project_url) {
-                    has_missing_projects = true;
-                }
-            }
-        }
-
-        if ! has_missing_projects {
-            return;
-        }
-
-        println!("Some projects are missing - we need to fetch project list");
-
-        let transport = boinc_rpc::Transport::new(host.addr, host.password);
-        let mut client = boinc_rpc::Client::new(transport);
-
-        let client_projects = match client.get_projects().await {
-            Ok(t) => Some(t),
-            Err(t) => panic!(t),
-        };
-
-        if let Some(projects) = client_projects.clone() {
-            for (_, project) in projects.into_iter().enumerate() {
-                let my_proj = project.clone();
-                project_list.insert(project.url, my_proj);
-            }
-        }
-    }
-}
-
-async fn update_task_list(hosts : &mut Vec<Host>)
-{
-    for (_idx, host) in hosts.into_iter().enumerate() {
-        println!("Fetching tasks for {:?}", host.addr);
-
-        let transport = boinc_rpc::Transport::new(host.addr, host.password);
-        let mut client = boinc_rpc::Client::new(transport);
-
-        let client_tasks = match client.get_results(false).await {
-            Ok(t) => t,
-            Err(t) => panic!(t),
-        };
-
-        host.results = Some(client_tasks);
-    }
-}
+// async fn update_projects_list(hosts : &Vec<Host>, project_list : &mut HashMap<Option<String>, ProjectInfo>)
+// {
+//     for mut host in hosts.iter() {
+//         // Here we want to check to see if we need to fetch
+//         // the projects - at this point, we should have the
+//         // list of tasks, and so we can check to see if any
+//         // of the tasks *don't* have an entry in the projects
+//         // list - if so, we need to fetch the proejcts list
+//         // from the host
+// 
+//         let mut has_missing_projects : bool = false;
+// 
+//         if let Some(results) = host.results.clone() {
+//             for (_, result) in results.into_iter().enumerate() {
+//                 if ! project_list.contains_key(&result.project_url) {
+//                     has_missing_projects = true;
+//                 }
+//             }
+//         }
+// 
+//         if ! has_missing_projects {
+//             return;
+//         }
+// 
+//         println!("Some projects are missing - we need to fetch project list");
+// 
+//         let mut client = host.connect();
+// 
+//         let client_projects = match client.get_projects().await {
+//             Ok(t) => Some(t),
+//             Err(t) => panic!(t),
+//         };
+// 
+//         if let Some(projects) = client_projects.clone() {
+//             for (_, project) in projects.into_iter().enumerate() {
+//                 let my_proj = project.clone();
+//                 project_list.insert(project.url, my_proj);
+//             }
+//         }
+//     }
+// }
+// 
+// async fn update_task_list(hosts : &mut Vec<Host>)
+// {
+//     for (_idx, host) in hosts.into_iter().enumerate() {
+//         println!("Fetching tasks for {:?}", host.addr);
+// 
+//         let mut client = host.connect();
+// 
+//         let client_tasks = match client.get_results(false).await {
+//             Ok(t) => t,
+//             Err(t) => panic!(t),
+//         };
+// 
+//         host.results = Some(client_tasks);
+//     }
+// }
 
 pub fn add_columns(treeview: &gtk::TreeView) {
     let mut columns: Vec<gtk::TreeViewColumn> = Vec::new();
@@ -153,37 +138,19 @@ fn append_column(
     return id;
 }
 
-fn create_model() -> gtk::ListStore {
-    let col_types: [glib::types::Type; 14] = [
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::String,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::String,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-        glib::types::Type::F64,
-    ];
-
-    return gtk::ListStore::new(&col_types);
-}
-
-fn build_ui(application: &gtk::Application) {
-    let model = Rc::new(RefCell::new(create_model()));
-    let mut project_list : HashMap<Option<String>, ProjectInfo> = HashMap::new();
+fn build_ui(app: &Application) {
+    // let mut project_list : HashMap<Option<String>, ProjectInfo> = HashMap::new();
     let mut host_list = Vec::new();
 
     host_list.push(Host::new("127.0.0.1:31416", Some("1033644eaad1ea7d91bc48a749f1620b")));
     // hosts.push(Host::new("192.168.1.108:31416", Some("5e09d64108b3871cae6ef4bd0c599c69")));
     host_list.push(Host::new("192.168.1.113:31416", Some("95405a40b449164295bba46fa405cc1b")));
 
-    let window = gtk::ApplicationWindow::new(application);
+    let window = ApplicationWindow::builder()
+        .application(app)
+        .title("My GTK App")
+        .build();
+
     window.set_title("BOINCView");
     window.set_default_size(1024, 768);
 
@@ -191,43 +158,37 @@ fn build_ui(application: &gtk::Application) {
     let host_frame = gtk::Frame::new(None);
     let data_frame = gtk::Frame::new(None);
 
-    gtk::FrameExt::set_shadow_type(&host_frame, gtk::ShadowType::In);
-    gtk::FrameExt::set_shadow_type(&data_frame, gtk::ShadowType::In);
+    host_frame.set_shadow_type(gtk::ShadowType::In);
+    data_frame.set_shadow_type(gtk::ShadowType::In);
 
-    gtk::Paned::pack1(&paned_window, &host_frame, true, true);
-    gtk::WidgetExt::set_size_request(&host_frame, 200, -1);
-
-    gtk::Paned::pack2(&paned_window, &data_frame, true, true);
-    gtk::WidgetExt::set_size_request(&data_frame, 568, -1);
-
-    window.add(&paned_window);
+    host_frame.set_size_request(200, -1);
+    data_frame.set_size_request(568, -1);
 
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    data_frame.add(&vbox);
 
     let scrolled_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
     scrolled_window.set_shadow_type(gtk::ShadowType::EtchedIn);
     scrolled_window.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
-    vbox.add(&scrolled_window);
 
-    let treeview = gtk::TreeView::new_with_model(&*model.borrow());
+    let model = Rc::new(RefCell::new(
+        gtk::ListStore::new(&[
+            String::static_type()
+        ])
+    ));
+    let treeview = gtk::TreeView::with_model(&*model.borrow());
+
     treeview.set_vexpand(true);
 
     scrolled_window.add(&treeview);
 
     add_columns(&treeview);
 
-    // get_data_for_model(&model.borrow());
-
     // Every 5 seconds, we'll update the data
-    Some(gtk::timeout_add(
-        5000,
-        move || {
-            get_data_for_model(&model.borrow(), &mut host_list, &mut project_list);
+    glib::timeout_add_seconds_local(5, move || {
+        glib::MainContext::default().spawn_local(get_data_for_model(&model.borrow(), &mut host_list));
 
-            glib::Continue(true)
-        }
-    ));
+        glib::Continue(true)
+    });
  
     // Need another timeout_add that simply iterates the model and increments
     // or decrements values as appropriate
@@ -242,41 +203,29 @@ fn build_ui(application: &gtk::Application) {
     //     }
     // ));
 
-    application.connect_activate(move |_| {
-        window.show_all();
-        // filter_entry.hide();
-        window.present();
-    });
+    vbox.add(&scrolled_window);
+    data_frame.add(&vbox);
+
+    paned_window.pack1(&host_frame, true, true);
+    paned_window.pack2(&data_frame, true, true);
+
+    window.add(&paned_window);
+    window.show_all();
 }
 
-fn get_data_for_model(store : &gtk::ListStore, mut host_list : &mut Vec<Host>, mut project_list : &mut HashMap<Option<String>, ProjectInfo>) {
+fn create_model() -> gtk::ListStore {
+    return gtk::ListStore::new(&[
+       String::static_type()
+    ]);
+}
+
+async fn get_data_for_model(store : &gtk::ListStore, host_list : &mut Vec<Host>) {
     store.clear();
 
-    let col_indices: [u32; 14] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-    get_necessary_data_from_hosts(&mut host_list, &mut project_list);
-
-    for host in host_list.iter() {
-        if let Some(results) = host.results.as_ref() {
-            for result in results.iter() {
-                let values: [&dyn ToValue; 14] = [
-                    &host.addr,
-                    &project_list.get(&result.project_url).unwrap().name,
-                    &result.name,
-                    &format!("{0:.2} %", result.progress()),
-                    &result.elapsed_as_string(),
-                    &result.remaining_as_string(),
-                    &result.state(),
-                    &result.report_deadline.unwrap(),
-                    &result.received_time.unwrap(),
-                    &result.completed_time.unwrap_or(0.0),
-                    &result.platform,
-                    &result.progress(),
-                    &result.elapsed(),
-                    &result.remaining(),
-                ];
-
-                store.set(&store.append(), &col_indices, &values);
-            }
+    for _host in host_list.iter() {
+        let entries = &["Michel", "Sara", "Liam", "Zelda", "Neo", "Octopus master"];
+        for (_i, entry) in entries.iter().enumerate() {
+            store.insert_with_values(None, &[(0, &entry)]);
         }
     }
 }

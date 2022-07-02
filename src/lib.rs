@@ -1,14 +1,14 @@
-use boinc_rpc::models::ProjectInfo;
+// use boinc_rpc::models::ProjectInfo;
 use boinc_rpc::models::TaskResult;
 use chrono::Duration;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Host {
     pub addr: &'static str,
     pub password: Option<&'static str>,
-    projects: HashMap<Option<String>, ProjectInfo>,
-    pub results: Option<Vec<TaskResult>>,
+    // projects: HashMap<Option<String>, ProjectInfo>,
+    // pub results: Option<Vec<TaskResult>>,
 }
 
 impl Host {
@@ -16,9 +16,15 @@ impl Host {
         Host {
             addr : addr,
             password : password,
-            projects : HashMap::new(),
-            results : None,
+            // projects : HashMap::new(),
+            // results : None,
         }
+    }
+
+    pub fn connect(&mut self) -> boinc_rpc::Client<boinc_rpc::Transport> {
+        let transport = boinc_rpc::Transport::new(self.addr, self.password);
+
+        return boinc_rpc::Client::new(transport);
     }
 }
 
